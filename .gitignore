@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local video editor storage
+/storage/input/*
+!/storage/input/.gitkeep
+/storage/jobs/*
+!/storage/jobs/.gitkeep
+/storage/output/*
+!/storage/output/.gitkeep
