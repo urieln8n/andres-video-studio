@@ -17,6 +17,32 @@ export type VideoEditorTranscript = {
   segments: VideoEditorSubtitleSegment[];
 };
 
+export type VideoEditorSilence = {
+  start: number;
+  end: number;
+  duration: number;
+};
+
+export type VideoEditorKeepRange = {
+  start: number;
+  end: number;
+  duration: number;
+};
+
+export type VideoEditorEditPlan = {
+  jobId: string;
+  inputPath: string;
+  cleanPath: string;
+  duration: number;
+  silences: VideoEditorSilence[];
+  keepRanges: VideoEditorKeepRange[];
+  removedSeconds: number;
+  originalDuration: number;
+  finalEstimatedDuration: number;
+  trimApplied: boolean;
+  warning?: string;
+};
+
 export type VideoEditorJob = {
   id: string;
   originalFileName: string;
@@ -28,6 +54,12 @@ export type VideoEditorJob = {
   language?: string | null;
   transcriptionText?: string | null;
   transcriptSegments?: VideoEditorSubtitleSegment[];
+  cleanVideoPath?: string | null;
+  editPlanPath?: string | null;
+  originalDuration?: number | null;
+  finalEstimatedDuration?: number | null;
+  removedSeconds?: number | null;
+  detectedSilencesCount?: number | null;
   status: VideoEditorJobStatus;
   progress: number;
   currentStep: string;

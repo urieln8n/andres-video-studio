@@ -16,11 +16,14 @@ import type { VideoEditorJob } from "@/lib/video-editor/types";
 const phases = [
   { label: "Subida y guardado", progress: 0 },
   { label: "Validación local", progress: 12 },
-  { label: "Audio WAV", progress: 22 },
-  { label: "Transcripción Whisper", progress: 32 },
-  { label: "Render FFmpeg 9:16", progress: 58 },
-  { label: "Subtítulos premium ASS", progress: 68 },
-  { label: "Quemado de subtítulos", progress: 88 },
+  { label: "Detección de silencios", progress: 18 },
+  { label: "Plan de edición", progress: 26 },
+  { label: "Recorte limpio", progress: 34 },
+  { label: "Audio WAV", progress: 42 },
+  { label: "Transcripción Whisper", progress: 50 },
+  { label: "Render FFmpeg 9:16", progress: 66 },
+  { label: "Subtítulos premium ASS", progress: 74 },
+  { label: "Quemado de subtítulos", progress: 90 },
   { label: "Vídeo final", progress: 100 },
 ] as const;
 

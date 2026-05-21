@@ -58,6 +58,24 @@ export default async function VideoResultPage({
     { label: "Archivo subido", value: job.originalFileName },
     { label: "Archivo guardado", value: job.storedFileName },
     { label: "Input", value: job.inputPath },
+    { label: "Vídeo limpio", value: job.cleanVideoPath || "Pendiente" },
+    { label: "Plan de edición", value: job.editPlanPath || "Pendiente" },
+    {
+      label: "Silencios detectados",
+      value: String(job.detectedSilencesCount ?? "Pendiente"),
+    },
+    {
+      label: "Segundos eliminados",
+      value: formatSeconds(job.removedSeconds),
+    },
+    {
+      label: "Duración original",
+      value: formatSeconds(job.originalDuration),
+    },
+    {
+      label: "Duración estimada final",
+      value: formatSeconds(job.finalEstimatedDuration),
+    },
     { label: "Output", value: job.outputPath || "Pendiente" },
     { label: "Transcript", value: job.transcriptPath || "Pendiente" },
     { label: "Idioma", value: job.language || "Pendiente" },
@@ -129,4 +147,8 @@ export default async function VideoResultPage({
 
 function getSearchValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function formatSeconds(value: number | null | undefined) {
+  return typeof value === "number" ? `${value.toFixed(2)}s` : "Pendiente";
 }

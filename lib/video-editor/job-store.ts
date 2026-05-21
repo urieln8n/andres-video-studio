@@ -89,6 +89,22 @@ export function getVerticalTempAbsolutePath(jobId: string) {
   return path.join(tempRoot, `${jobId}_vertical.mp4`);
 }
 
+export function getCleanTempAbsolutePath(jobId: string) {
+  return path.join(tempRoot, `${jobId}_clean.mp4`);
+}
+
+export function getCleanTempRelativePath(jobId: string) {
+  return path.posix.join("storage", "temp", `${jobId}_clean.mp4`);
+}
+
+export function getEditPlanAbsolutePath(jobId: string) {
+  return path.join(tempRoot, `${jobId}_edit_plan.json`);
+}
+
+export function getEditPlanRelativePath(jobId: string) {
+  return path.posix.join("storage", "temp", `${jobId}_edit_plan.json`);
+}
+
 export function getAudioTempAbsolutePath(jobId: string) {
   return path.join(tempRoot, `${jobId}.wav`);
 }
@@ -117,6 +133,12 @@ export function createUploadedJob(fileName: string) {
     transcriptPath: null,
     language: null,
     transcriptionText: null,
+    cleanVideoPath: null,
+    editPlanPath: null,
+    originalDuration: null,
+    finalEstimatedDuration: null,
+    removedSeconds: null,
+    detectedSilencesCount: null,
     status: "uploaded",
     progress: 0,
     currentStep: "Vídeo recibido en storage/input",

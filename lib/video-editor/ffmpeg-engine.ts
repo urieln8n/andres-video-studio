@@ -5,16 +5,23 @@ import {
   ensureVideoEditorStorage,
   fileHasContent,
   getAudioTempAbsolutePath,
+  getCleanTempAbsolutePath,
+  getCleanTempRelativePath,
   getInputAbsolutePath,
-  getSubtitledOutputAbsolutePath,
-  getSubtitledOutputRelativePath,
+  getOutputAbsolutePath,
+  getOutputRelativePath,
   getVerticalTempAbsolutePath,
   readJob,
   updateJob,
 } from "@/lib/video-editor/job-store";
+import { createEditPlan, writeEditPlan } from "@/lib/video-editor/edit-plan";
+import { detectVideoSilences } from "@/lib/video-editor/silence-detector";
 import { createPremiumAssSubtitles } from "@/lib/video-editor/subtitle-engine";
 import { transcribeAudioWithWhisper } from "@/lib/video-editor/transcription-engine";
-import type { VideoEditorJob } from "@/lib/video-editor/types";
+import type {
+  VideoEditorJob,
+  VideoEditorKeepRange,
+} from "@/lib/video-editor/types";
 
 const ffmpegCommand = "ffmpeg";
 const maxErrorOutputLength = 8_000;
@@ -44,8 +51,9 @@ async function runVideoEditorJob(jobId: string) {
 
   const inputAbsolutePath = getInputAbsolutePath(job.storedFileName);
   const audioAbsolutePath = getAudioTempAbsolutePath(job.id);
+  const cleanAbsolutePath = getCleanTempAbsolutePath(job.id);
   const verticalAbsolutePath = getVerticalTempAbsolutePath(job.id);
-  const outputAbsolutePath = getSubtitledOutputAbsolutePath(job.id);
+  const outputAbsolutePath = getOutputAbsolutePath(job.id);
 
   await ensureVideoEditorStorage();
 
@@ -53,6 +61,7 @@ async function runVideoEditorJob(jobId: string) {
     job.status === "completed" &&
     job.subtitlesPath &&
     job.transcriptPath &&
+    job.editPlanPath &&
     (await fileHasContent(outputAbsolutePath))
   ) {
     return job;
@@ -65,6 +74,12 @@ async function runVideoEditorJob(jobId: string) {
           ...currentJob,
           outputPath: null,
           subtitlesPath: null,
+          editPlanPath: null,
+          cleanVideoPath: null,
+          originalDuration: null,
+          finalEstimatedDuration: null,
+          removedSeconds: null,
+          detectedSilencesCount: null,
           transcriptPath: null,
           language: null,
           transcriptionText: null,
@@ -88,14 +103,83 @@ async function runVideoEditorJob(jobId: string) {
       appendJobLog(
         {
           ...currentJob,
-          progress: 22,
-          currentStep: "Extrayendo audio del vídeo",
+          progress: 18,
+          currentStep: "Detectando silencios con FFmpeg",
         },
-        "Extrayendo audio del vídeo",
+        "Detectando silencios con FFmpeg",
       ),
     );
 
-    await extractAudioWav(inputAbsolutePath, audioAbsolutePath);
+    const silenceDetection = await detectVideoSilences(inputAbsolutePath);
+
+    await updateJob(job.id, (currentJob) =>
+      appendJobLog(
+        {
+          ...currentJob,
+          progress: 26,
+          detectedSilencesCount: silenceDetection.silences.length,
+          originalDuration: silenceDetection.duration,
+          currentStep: "Generando plan de edición",
+        },
+        "Silencios detectados",
+      ),
+    );
+
+    await updateJob(job.id, (currentJob) =>
+      appendJobLog(currentJob, "Generando plan de edición"),
+    );
+
+    const editPlan = createEditPlan({
+      jobId: job.id,
+      inputPath: job.inputPath,
+      cleanPath: getCleanTempRelativePath(job.id),
+      duration: silenceDetection.duration,
+      silences: silenceDetection.silences,
+    });
+    const editPlanFile = await writeEditPlan(editPlan);
+
+    await updateJob(job.id, (currentJob) =>
+      appendJobLog(
+        {
+          ...currentJob,
+          cleanVideoPath: editPlan.cleanPath,
+          editPlanPath: editPlanFile.relativePath,
+          originalDuration: editPlan.originalDuration,
+          finalEstimatedDuration: editPlan.finalEstimatedDuration,
+          removedSeconds: editPlan.removedSeconds,
+          detectedSilencesCount: editPlan.silences.length,
+          progress: 34,
+          currentStep: "Recortando pausas largas",
+        },
+        "Recortando pausas largas",
+      ),
+    );
+
+    const cleanSourceAbsolutePath = await createCleanVideo({
+      inputAbsolutePath,
+      cleanAbsolutePath,
+      keepRanges: editPlan.keepRanges,
+      trimApplied: editPlan.trimApplied,
+    });
+
+    await updateJob(job.id, (currentJob) =>
+      appendJobLog(
+        {
+          ...currentJob,
+          progress: 42,
+          currentStep: "Transcribiendo vídeo limpio",
+        },
+        editPlan.warning
+          ? `${editPlan.warning} Vídeo limpio generado`
+          : "Vídeo limpio generado",
+      ),
+    );
+
+    await updateJob(job.id, (currentJob) =>
+      appendJobLog(currentJob, "Extrayendo audio del vídeo"),
+    );
+
+    await extractAudioWav(cleanSourceAbsolutePath, audioAbsolutePath);
 
     if (!(await fileHasContent(audioAbsolutePath))) {
       throw new Error("FFmpeg terminó sin crear el audio WAV para Whisper.");
@@ -105,7 +189,7 @@ async function runVideoEditorJob(jobId: string) {
       appendJobLog(
         {
           ...currentJob,
-          progress: 32,
+          progress: 50,
           currentStep: "Iniciando transcripción con Whisper",
         },
         "Audio WAV generado",
@@ -113,23 +197,27 @@ async function runVideoEditorJob(jobId: string) {
     );
 
     await updateJob(job.id, (currentJob) =>
+      appendJobLog(currentJob, "Transcribiendo vídeo limpio"),
+    );
+
+    await updateJob(job.id, (currentJob) =>
       appendJobLog(currentJob, "Iniciando transcripción con Whisper"),
     );
 
-    const transcriptionCreated = await tryTranscription(job.id, audioAbsolutePath);
+    await tryTranscription(job.id, audioAbsolutePath);
 
     await updateJob(job.id, (currentJob) =>
       appendJobLog(
         {
           ...currentJob,
-          progress: 58,
+          progress: 66,
           currentStep: "Renderizando formato vertical 9:16",
         },
         "FFmpeg disponible. Iniciando render vertical 9:16.",
       ),
     );
 
-    await renderVerticalVideo(inputAbsolutePath, verticalAbsolutePath);
+    await renderVerticalVideo(cleanSourceAbsolutePath, verticalAbsolutePath);
 
     if (!(await fileHasContent(verticalAbsolutePath))) {
       throw new Error("FFmpeg terminó sin crear el vídeo vertical intermedio.");
@@ -139,14 +227,10 @@ async function runVideoEditorJob(jobId: string) {
       appendJobLog(
         {
           ...currentJob,
-          progress: 68,
-          currentStep: transcriptionCreated
-            ? "Generando subtítulos desde transcripción real"
-            : "Generando subtítulos premium",
+          progress: 74,
+          currentStep: "Generando subtítulos del vídeo limpio",
         },
-        transcriptionCreated
-          ? "Generando subtítulos desde transcripción real"
-          : "Generando subtítulos premium",
+        "Generando subtítulos del vídeo limpio",
       ),
     );
 
@@ -160,7 +244,7 @@ async function runVideoEditorJob(jobId: string) {
       appendJobLog(
         {
           ...currentJob,
-          progress: 78,
+          progress: 82,
           subtitlesPath: subtitles.subtitleRelativePath,
         },
         "Archivo ASS creado",
@@ -171,14 +255,10 @@ async function runVideoEditorJob(jobId: string) {
       appendJobLog(
         {
           ...currentJob,
-          progress: 88,
-          currentStep: transcriptionCreated
-            ? "Quemando subtítulos reales en el vídeo"
-            : "Quemando subtítulos en el vídeo",
+          progress: 90,
+          currentStep: "Quemando subtítulos del vídeo limpio",
         },
-        transcriptionCreated
-          ? "Quemando subtítulos reales en el vídeo"
-          : "Quemando subtítulos en el vídeo",
+        "Quemando subtítulos del vídeo limpio",
       ),
     );
 
@@ -196,7 +276,7 @@ async function runVideoEditorJob(jobId: string) {
       appendJobLog(
         {
           ...currentJob,
-          outputPath: getSubtitledOutputRelativePath(currentJob.id),
+          outputPath: getOutputRelativePath(currentJob.id),
           status: "completed",
           progress: 100,
           currentStep: "Vídeo final con subtítulos generado",
@@ -250,6 +330,68 @@ async function renderVerticalVideo(inputPath: string, outputPath: string) {
     inputPath,
     "-vf",
     "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black,setsar=1",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "23",
+    "-c:a",
+    "aac",
+    "-movflags",
+    "+faststart",
+    outputPath,
+  ]);
+}
+
+async function createCleanVideo({
+  inputAbsolutePath,
+  cleanAbsolutePath,
+  keepRanges,
+  trimApplied,
+}: {
+  inputAbsolutePath: string;
+  cleanAbsolutePath: string;
+  keepRanges: VideoEditorKeepRange[];
+  trimApplied: boolean;
+}) {
+  if (!trimApplied) {
+    return inputAbsolutePath;
+  }
+
+  await trimKeepRanges(inputAbsolutePath, cleanAbsolutePath, keepRanges);
+
+  if (!(await fileHasContent(cleanAbsolutePath))) {
+    throw new Error("FFmpeg terminó sin crear el vídeo limpio.");
+  }
+
+  return cleanAbsolutePath;
+}
+
+async function trimKeepRanges(
+  inputPath: string,
+  outputPath: string,
+  keepRanges: VideoEditorKeepRange[],
+) {
+  const filters = keepRanges.flatMap((range, index) => [
+    `[0:v]trim=start=${range.start}:end=${range.end},setpts=PTS-STARTPTS[v${index}]`,
+    `[0:a]atrim=start=${range.start}:end=${range.end},asetpts=PTS-STARTPTS[a${index}]`,
+  ]);
+  const concatInputs = keepRanges
+    .map((_range, index) => `[v${index}][a${index}]`)
+    .join("");
+  const filterComplex = `${filters.join(";")};${concatInputs}concat=n=${keepRanges.length}:v=1:a=1[v][a]`;
+
+  await runProcess(ffmpegCommand, [
+    "-y",
+    "-i",
+    inputPath,
+    "-filter_complex",
+    filterComplex,
+    "-map",
+    "[v]",
+    "-map",
+    "[a]",
     "-c:v",
     "libx264",
     "-preset",
