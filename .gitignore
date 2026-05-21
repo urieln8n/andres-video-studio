@@ -47,3 +47,5 @@ next-env.d.ts
 !/storage/jobs/.gitkeep
 /storage/output/*
 !/storage/output/.gitkeep
+/storage/temp/*
+!/storage/temp/.gitkeep

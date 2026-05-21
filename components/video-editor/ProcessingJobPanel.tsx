@@ -17,6 +17,8 @@ const phases = [
   { label: "Subida y guardado", progress: 0 },
   { label: "Validación local", progress: 20 },
   { label: "Render FFmpeg 9:16", progress: 40 },
+  { label: "Subtítulos premium ASS", progress: 68 },
+  { label: "Quemado de subtítulos", progress: 88 },
   { label: "Vídeo final", progress: 100 },
 ] as const;
 

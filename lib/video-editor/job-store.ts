@@ -17,6 +17,7 @@ const storageRoot = path.join(process.cwd(), "storage");
 const inputRoot = path.join(storageRoot, "input");
 const jobsRoot = path.join(storageRoot, "jobs");
 const outputRoot = path.join(storageRoot, "output");
+const tempRoot = path.join(storageRoot, "temp");
 
 export function isAllowedVideoFileName(fileName: string) {
   return VIDEO_EDITOR_ALLOWED_EXTENSIONS.includes(
@@ -42,6 +43,7 @@ export async function ensureVideoEditorStorage() {
     mkdir(inputRoot, { recursive: true }),
     mkdir(jobsRoot, { recursive: true }),
     mkdir(outputRoot, { recursive: true }),
+    mkdir(tempRoot, { recursive: true }),
   ]);
 }
 
@@ -61,6 +63,30 @@ export function getOutputRelativePath(jobId: string) {
   return path.posix.join("storage", "output", `${jobId}_final.mp4`);
 }
 
+export function getSubtitledOutputAbsolutePath(jobId: string) {
+  return path.join(outputRoot, `${jobId}_subtitled.mp4`);
+}
+
+export function getSubtitledOutputRelativePath(jobId: string) {
+  return path.posix.join("storage", "output", `${jobId}_subtitled.mp4`);
+}
+
+export function getOutputAbsolutePathFromRelative(outputPath: string) {
+  return path.join(outputRoot, path.basename(outputPath));
+}
+
+export function getSubtitleAbsolutePath(jobId: string) {
+  return path.join(tempRoot, `${jobId}.ass`);
+}
+
+export function getSubtitleRelativePath(jobId: string) {
+  return path.posix.join("storage", "temp", `${jobId}.ass`);
+}
+
+export function getVerticalTempAbsolutePath(jobId: string) {
+  return path.join(tempRoot, `${jobId}_vertical.mp4`);
+}
+
 export function createUploadedJob(fileName: string) {
   const id = randomUUID();
   const originalFileName = sanitizeVideoFileName(fileName);
@@ -73,6 +99,7 @@ export function createUploadedJob(fileName: string) {
     storedFileName,
     inputPath: path.posix.join("storage", "input", storedFileName),
     outputPath: null,
+    subtitlesPath: null,
     status: "uploaded",
     progress: 0,
     currentStep: "Vídeo recibido en storage/input",

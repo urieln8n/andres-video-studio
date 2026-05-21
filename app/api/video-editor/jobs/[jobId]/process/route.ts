@@ -23,7 +23,7 @@ export async function POST(
         error:
           error instanceof Error
             ? error.message
-            : "No se pudo procesar el vídeo con FFmpeg.",
+            : "No se pudo procesar el vídeo subtitulado con FFmpeg.",
       },
       { status: 500 },
     );

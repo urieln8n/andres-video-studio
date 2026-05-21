@@ -1,14 +1,17 @@
 import { spawn } from "node:child_process";
+import path from "node:path";
 
 import {
   ensureVideoEditorStorage,
   fileHasContent,
   getInputAbsolutePath,
-  getOutputAbsolutePath,
-  getOutputRelativePath,
+  getSubtitledOutputAbsolutePath,
+  getSubtitledOutputRelativePath,
+  getVerticalTempAbsolutePath,
   readJob,
   updateJob,
 } from "@/lib/video-editor/job-store";
+import { createPremiumAssSubtitles } from "@/lib/video-editor/subtitle-engine";
 import type { VideoEditorJob } from "@/lib/video-editor/types";
 
 const ffmpegCommand = "ffmpeg";
@@ -38,11 +41,16 @@ async function runVideoEditorJob(jobId: string) {
   }
 
   const inputAbsolutePath = getInputAbsolutePath(job.storedFileName);
-  const outputAbsolutePath = getOutputAbsolutePath(job.id);
+  const verticalAbsolutePath = getVerticalTempAbsolutePath(job.id);
+  const outputAbsolutePath = getSubtitledOutputAbsolutePath(job.id);
 
   await ensureVideoEditorStorage();
 
-  if (job.status === "completed" && (await fileHasContent(outputAbsolutePath))) {
+  if (
+    job.status === "completed" &&
+    job.subtitlesPath &&
+    (await fileHasContent(outputAbsolutePath))
+  ) {
     return job;
   }
 
@@ -52,6 +60,7 @@ async function runVideoEditorJob(jobId: string) {
         {
           ...currentJob,
           outputPath: null,
+          subtitlesPath: null,
           status: "processing",
           progress: 40,
           currentStep: "Procesando vídeo con FFmpeg",
@@ -71,23 +80,72 @@ async function runVideoEditorJob(jobId: string) {
       appendJobLog(currentJob, "FFmpeg disponible. Iniciando render vertical 9:16."),
     );
 
-    await renderVerticalVideo(inputAbsolutePath, outputAbsolutePath);
+    await renderVerticalVideo(inputAbsolutePath, verticalAbsolutePath);
+
+    if (!(await fileHasContent(verticalAbsolutePath))) {
+      throw new Error("FFmpeg terminó sin crear el vídeo vertical intermedio.");
+    }
+
+    const generatingSubtitlesJob = await updateJob(job.id, (currentJob) =>
+      appendJobLog(
+        {
+          ...currentJob,
+          progress: 68,
+          currentStep: "Generando subtítulos premium",
+        },
+        "Generando subtítulos premium",
+      ),
+    );
+
+    if (!generatingSubtitlesJob) {
+      throw new Error("El job desapareció antes de crear los subtítulos.");
+    }
+
+    const subtitles = await createPremiumAssSubtitles(generatingSubtitlesJob);
+
+    await updateJob(job.id, (currentJob) =>
+      appendJobLog(
+        {
+          ...currentJob,
+          progress: 78,
+          subtitlesPath: subtitles.subtitleRelativePath,
+        },
+        "Archivo ASS creado",
+      ),
+    );
+
+    await updateJob(job.id, (currentJob) =>
+      appendJobLog(
+        {
+          ...currentJob,
+          progress: 88,
+          currentStep: "Quemando subtítulos en el vídeo",
+        },
+        "Quemando subtítulos en el vídeo",
+      ),
+    );
+
+    await renderSubtitledVideo(
+      verticalAbsolutePath,
+      subtitles.subtitleAbsolutePath,
+      outputAbsolutePath,
+    );
 
     if (!(await fileHasContent(outputAbsolutePath))) {
-      throw new Error("FFmpeg terminó sin crear un vídeo final válido.");
+      throw new Error("FFmpeg terminó sin crear el vídeo final subtitulado.");
     }
 
     return await updateJob(job.id, (currentJob) =>
       appendJobLog(
         {
           ...currentJob,
-          outputPath: getOutputRelativePath(currentJob.id),
+          outputPath: getSubtitledOutputRelativePath(currentJob.id),
           status: "completed",
           progress: 100,
-          currentStep: "Vídeo final generado",
+          currentStep: "Vídeo final con subtítulos generado",
           errorMessage: undefined,
         },
-        "Render completado",
+        "Render con subtítulos completado",
       ),
     );
   } catch (error) {
@@ -147,6 +205,43 @@ async function renderVerticalVideo(inputPath: string, outputPath: string) {
     "+faststart",
     outputPath,
   ]);
+}
+
+async function renderSubtitledVideo(
+  inputPath: string,
+  subtitlePath: string,
+  outputPath: string,
+) {
+  await runProcess(ffmpegCommand, [
+    "-y",
+    "-i",
+    inputPath,
+    "-vf",
+    createSubtitleFilter(subtitlePath),
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "23",
+    "-c:a",
+    "aac",
+    "-movflags",
+    "+faststart",
+    outputPath,
+  ]);
+}
+
+function createSubtitleFilter(subtitlePath: string) {
+  // FFmpeg parses Windows drive colons inside filters, so normalize and escape
+  // the absolute ASS path before passing it as a single spawn argument.
+  const escapedSubtitlePath = path
+    .resolve(subtitlePath)
+    .replace(/\\/g, "/")
+    .replace(/:/g, "\\:")
+    .replace(/'/g, "\\'");
+
+  return `subtitles=filename='${escapedSubtitlePath}'`;
 }
 
 function runProcess(command: string, args: string[]) {

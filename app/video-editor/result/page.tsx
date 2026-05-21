@@ -7,7 +7,8 @@ import { VideoDetailsCard } from "@/components/video-editor/VideoDetailsCard";
 import type { VideoDetail } from "@/lib/video-editor/mock-data";
 import {
   fileHasContent,
-  getOutputAbsolutePath,
+  getOutputAbsolutePathFromRelative,
+  getSubtitleAbsolutePath,
   readJob,
 } from "@/lib/video-editor/job-store";
 
@@ -43,7 +44,11 @@ export default async function VideoResultPage({
   }
 
   const outputAvailable = Boolean(
-    job.outputPath && (await fileHasContent(getOutputAbsolutePath(job.id))),
+    job.outputPath &&
+      (await fileHasContent(getOutputAbsolutePathFromRelative(job.outputPath))),
+  );
+  const subtitlesAvailable = Boolean(
+    job.subtitlesPath && (await fileHasContent(getSubtitleAbsolutePath(job.id))),
   );
   const outputFileName = job.outputPath
     ? path.posix.basename(job.outputPath)
@@ -54,11 +59,16 @@ export default async function VideoResultPage({
     { label: "Archivo guardado", value: job.storedFileName },
     { label: "Input", value: job.inputPath },
     { label: "Output", value: job.outputPath || "Pendiente" },
+    { label: "Subtítulos ASS", value: job.subtitlesPath || "Pendiente" },
     {
       label: "Archivo final",
       value: outputAvailable ? outputFileName : "Pendiente",
     },
-    { label: "Formato", value: "9:16 vertical FFmpeg" },
+    {
+      label: "ASS creado",
+      value: subtitlesAvailable ? "Disponible" : "Pendiente",
+    },
+    { label: "Formato", value: "9:16 vertical FFmpeg con subtítulos" },
     { label: "Estado", value: job.status },
     { label: "Paso actual", value: job.currentStep },
   ];
