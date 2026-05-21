@@ -59,6 +59,12 @@ export default async function VideoResultPage({
     { label: "Archivo guardado", value: job.storedFileName },
     { label: "Input", value: job.inputPath },
     { label: "Output", value: job.outputPath || "Pendiente" },
+    { label: "Transcript", value: job.transcriptPath || "Pendiente" },
+    { label: "Idioma", value: job.language || "Pendiente" },
+    {
+      label: "Texto transcrito",
+      value: job.transcriptionText || "Usando segmentos mock",
+    },
     { label: "Subtítulos ASS", value: job.subtitlesPath || "Pendiente" },
     {
       label: "Archivo final",

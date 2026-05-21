@@ -35,3 +35,17 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 # andres-video-studio
+
+## Transcripción local
+
+La transcripción real usa `faster-whisper` desde un entorno Python local. En
+Windows:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+pip install faster-whisper
+```
+
+El proceso usa `.venv\Scripts\python.exe` cuando existe y cae al launcher
+`py` en Windows. Sin `faster-whisper`, el render conserva los subtítulos mock.

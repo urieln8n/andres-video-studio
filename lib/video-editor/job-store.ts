@@ -18,6 +18,7 @@ const inputRoot = path.join(storageRoot, "input");
 const jobsRoot = path.join(storageRoot, "jobs");
 const outputRoot = path.join(storageRoot, "output");
 const tempRoot = path.join(storageRoot, "temp");
+const transcriptsRoot = path.join(storageRoot, "transcripts");
 
 export function isAllowedVideoFileName(fileName: string) {
   return VIDEO_EDITOR_ALLOWED_EXTENSIONS.includes(
@@ -44,6 +45,7 @@ export async function ensureVideoEditorStorage() {
     mkdir(jobsRoot, { recursive: true }),
     mkdir(outputRoot, { recursive: true }),
     mkdir(tempRoot, { recursive: true }),
+    mkdir(transcriptsRoot, { recursive: true }),
   ]);
 }
 
@@ -87,6 +89,18 @@ export function getVerticalTempAbsolutePath(jobId: string) {
   return path.join(tempRoot, `${jobId}_vertical.mp4`);
 }
 
+export function getAudioTempAbsolutePath(jobId: string) {
+  return path.join(tempRoot, `${jobId}.wav`);
+}
+
+export function getTranscriptAbsolutePath(jobId: string) {
+  return path.join(transcriptsRoot, `${jobId}.json`);
+}
+
+export function getTranscriptRelativePath(jobId: string) {
+  return path.posix.join("storage", "transcripts", `${jobId}.json`);
+}
+
 export function createUploadedJob(fileName: string) {
   const id = randomUUID();
   const originalFileName = sanitizeVideoFileName(fileName);
@@ -100,6 +114,9 @@ export function createUploadedJob(fileName: string) {
     inputPath: path.posix.join("storage", "input", storedFileName),
     outputPath: null,
     subtitlesPath: null,
+    transcriptPath: null,
+    language: null,
+    transcriptionText: null,
     status: "uploaded",
     progress: 0,
     currentStep: "Vídeo recibido en storage/input",

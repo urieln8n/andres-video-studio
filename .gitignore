@@ -49,3 +49,5 @@ next-env.d.ts
 !/storage/output/.gitkeep
 /storage/temp/*
 !/storage/temp/.gitkeep
+/storage/transcripts/*
+!/storage/transcripts/.gitkeep

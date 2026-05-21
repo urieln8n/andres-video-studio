@@ -4,6 +4,7 @@ import path from "node:path";
 import {
   ensureVideoEditorStorage,
   fileHasContent,
+  getAudioTempAbsolutePath,
   getInputAbsolutePath,
   getSubtitledOutputAbsolutePath,
   getSubtitledOutputRelativePath,
@@ -12,6 +13,7 @@ import {
   updateJob,
 } from "@/lib/video-editor/job-store";
 import { createPremiumAssSubtitles } from "@/lib/video-editor/subtitle-engine";
+import { transcribeAudioWithWhisper } from "@/lib/video-editor/transcription-engine";
 import type { VideoEditorJob } from "@/lib/video-editor/types";
 
 const ffmpegCommand = "ffmpeg";
@@ -41,6 +43,7 @@ async function runVideoEditorJob(jobId: string) {
   }
 
   const inputAbsolutePath = getInputAbsolutePath(job.storedFileName);
+  const audioAbsolutePath = getAudioTempAbsolutePath(job.id);
   const verticalAbsolutePath = getVerticalTempAbsolutePath(job.id);
   const outputAbsolutePath = getSubtitledOutputAbsolutePath(job.id);
 
@@ -49,6 +52,7 @@ async function runVideoEditorJob(jobId: string) {
   if (
     job.status === "completed" &&
     job.subtitlesPath &&
+    job.transcriptPath &&
     (await fileHasContent(outputAbsolutePath))
   ) {
     return job;
@@ -61,8 +65,12 @@ async function runVideoEditorJob(jobId: string) {
           ...currentJob,
           outputPath: null,
           subtitlesPath: null,
+          transcriptPath: null,
+          language: null,
+          transcriptionText: null,
+          transcriptSegments: undefined,
           status: "processing",
-          progress: 40,
+          progress: 12,
           currentStep: "Procesando vídeo con FFmpeg",
           errorMessage: undefined,
         },
@@ -77,7 +85,48 @@ async function runVideoEditorJob(jobId: string) {
     }
 
     await updateJob(job.id, (currentJob) =>
-      appendJobLog(currentJob, "FFmpeg disponible. Iniciando render vertical 9:16."),
+      appendJobLog(
+        {
+          ...currentJob,
+          progress: 22,
+          currentStep: "Extrayendo audio del vídeo",
+        },
+        "Extrayendo audio del vídeo",
+      ),
+    );
+
+    await extractAudioWav(inputAbsolutePath, audioAbsolutePath);
+
+    if (!(await fileHasContent(audioAbsolutePath))) {
+      throw new Error("FFmpeg terminó sin crear el audio WAV para Whisper.");
+    }
+
+    await updateJob(job.id, (currentJob) =>
+      appendJobLog(
+        {
+          ...currentJob,
+          progress: 32,
+          currentStep: "Iniciando transcripción con Whisper",
+        },
+        "Audio WAV generado",
+      ),
+    );
+
+    await updateJob(job.id, (currentJob) =>
+      appendJobLog(currentJob, "Iniciando transcripción con Whisper"),
+    );
+
+    const transcriptionCreated = await tryTranscription(job.id, audioAbsolutePath);
+
+    await updateJob(job.id, (currentJob) =>
+      appendJobLog(
+        {
+          ...currentJob,
+          progress: 58,
+          currentStep: "Renderizando formato vertical 9:16",
+        },
+        "FFmpeg disponible. Iniciando render vertical 9:16.",
+      ),
     );
 
     await renderVerticalVideo(inputAbsolutePath, verticalAbsolutePath);
@@ -91,9 +140,13 @@ async function runVideoEditorJob(jobId: string) {
         {
           ...currentJob,
           progress: 68,
-          currentStep: "Generando subtítulos premium",
+          currentStep: transcriptionCreated
+            ? "Generando subtítulos desde transcripción real"
+            : "Generando subtítulos premium",
         },
-        "Generando subtítulos premium",
+        transcriptionCreated
+          ? "Generando subtítulos desde transcripción real"
+          : "Generando subtítulos premium",
       ),
     );
 
@@ -119,9 +172,13 @@ async function runVideoEditorJob(jobId: string) {
         {
           ...currentJob,
           progress: 88,
-          currentStep: "Quemando subtítulos en el vídeo",
+          currentStep: transcriptionCreated
+            ? "Quemando subtítulos reales en el vídeo"
+            : "Quemando subtítulos en el vídeo",
         },
-        "Quemando subtítulos en el vídeo",
+        transcriptionCreated
+          ? "Quemando subtítulos reales en el vídeo"
+          : "Quemando subtítulos en el vídeo",
       ),
     );
 
@@ -145,7 +202,7 @@ async function runVideoEditorJob(jobId: string) {
           currentStep: "Vídeo final con subtítulos generado",
           errorMessage: undefined,
         },
-        "Render con subtítulos completado",
+        "Render final completado",
       ),
     );
   } catch (error) {
@@ -207,6 +264,22 @@ async function renderVerticalVideo(inputPath: string, outputPath: string) {
   ]);
 }
 
+async function extractAudioWav(inputPath: string, outputPath: string) {
+  await runProcess(ffmpegCommand, [
+    "-y",
+    "-i",
+    inputPath,
+    "-vn",
+    "-ac",
+    "1",
+    "-ar",
+    "16000",
+    "-c:a",
+    "pcm_s16le",
+    outputPath,
+  ]);
+}
+
 async function renderSubtitledVideo(
   inputPath: string,
   subtitlePath: string,
@@ -230,6 +303,47 @@ async function renderSubtitledVideo(
     "+faststart",
     outputPath,
   ]);
+}
+
+async function tryTranscription(jobId: string, audioAbsolutePath: string) {
+  try {
+    const result = await transcribeAudioWithWhisper(jobId, audioAbsolutePath);
+
+    await updateJob(jobId, (currentJob) =>
+      appendJobLog(
+        {
+          ...currentJob,
+          transcriptPath: result.transcriptRelativePath,
+          language: result.transcript.language,
+          transcriptionText: result.transcript.text,
+          transcriptSegments: result.transcript.segments,
+          progress: 48,
+          currentStep: "Transcripción completada",
+        },
+        "Transcripción completada",
+      ),
+    );
+
+    return result.transcript.segments.length > 0;
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "No se pudo ejecutar faster-whisper.";
+
+    await updateJob(jobId, (currentJob) =>
+      appendJobLog(
+        {
+          ...currentJob,
+          progress: 48,
+          currentStep: "Transcripción no disponible; usando subtítulos mock",
+        },
+        `Transcripción no disponible. Usando subtítulos mock. ${errorMessage}`,
+      ),
+    );
+
+    return false;
+  }
 }
 
 function createSubtitleFilter(subtitlePath: string) {
