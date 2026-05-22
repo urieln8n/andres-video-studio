@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import {
+  open,
   mkdir,
   readFile,
   readdir,
@@ -162,6 +163,10 @@ export function getFillerPlanRelativePath(jobId: string) {
   return path.posix.join("storage", "temp", `${jobId}_filler_plan.json`);
 }
 
+export function getProcessingLockAbsolutePath(jobId: string) {
+  return path.join(tempRoot, `${jobId}.lock`);
+}
+
 export function getAudioTempAbsolutePath(jobId: string) {
   return path.join(tempRoot, `${jobId}.wav`);
 }
@@ -223,7 +228,8 @@ export function createUploadedJob(fileName: string, configValue?: unknown) {
     detectedSilencesCount: null,
     status: "uploaded",
     progress: 0,
-    currentStep: "Vídeo recibido en storage/input",
+    currentStep: "uploaded",
+    currentStepLabel: "Vídeo recibido",
     logs: ["Archivo guardado en storage/input.", "Job creado."],
     createdAt: now,
     updatedAt: now,
@@ -343,6 +349,35 @@ export async function fileHasContent(filePath: string) {
   }
 }
 
+export async function acquireProcessingLock(jobId: string) {
+  if (!isValidVideoEditorJobId(jobId)) {
+    return false;
+  }
+
+  await ensureVideoEditorStorage();
+
+  try {
+    const handle = await open(getProcessingLockAbsolutePath(jobId), "wx");
+    await handle.writeFile(new Date().toISOString(), "utf8");
+    await handle.close();
+    return true;
+  } catch (error) {
+    if (isFileAlreadyExistsError(error)) {
+      return false;
+    }
+
+    throw error;
+  }
+}
+
+export async function releaseProcessingLock(jobId: string) {
+  if (!isValidVideoEditorJobId(jobId)) {
+    return;
+  }
+
+  await removeKnownFile(getProcessingLockAbsolutePath(jobId), tempRoot);
+}
+
 function getJobAbsolutePath(jobId: string) {
   return path.join(jobsRoot, `${jobId}.json`);
 }
@@ -419,5 +454,14 @@ function isFileMissingError(error: unknown): error is NodeJS.ErrnoException {
     error !== null &&
     "code" in error &&
     error.code === "ENOENT"
+  );
+}
+
+function isFileAlreadyExistsError(error: unknown): error is NodeJS.ErrnoException {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "EEXIST"
   );
 }

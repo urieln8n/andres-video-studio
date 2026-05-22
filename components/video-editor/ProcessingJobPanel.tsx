@@ -1,38 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { LiveLogsPanel } from "@/components/video-editor/LiveLogsPanel";
-import { ProcessingPhaseList } from "@/components/video-editor/ProcessingPhaseList";
+import { ProcessingTimeline } from "@/components/video-editor/ProcessingTimeline";
 import { ProgressStatusCard } from "@/components/video-editor/ProgressStatusCard";
-import type {
-  LiveLog,
-  ProcessingPhase,
-  ProcessingStatus,
-} from "@/lib/video-editor/mock-data";
 import type { VideoEditorJob } from "@/lib/video-editor/types";
 import { getTemplateById } from "@/lib/video-editor/templates";
 import { normalizeVideoEditorConfig } from "@/lib/video-editor/config";
-
-const phases = [
-  { label: "Subida y guardado", progress: 0 },
-  { label: "Validación local", progress: 12 },
-  { label: "Detección de silencios", progress: 18 },
-  { label: "Plan de edición", progress: 26 },
-  { label: "Recorte limpio", progress: 34 },
-  { label: "Audio WAV", progress: 42 },
-  { label: "Transcripción Whisper", progress: 50 },
-  { label: "Render FFmpeg 9:16", progress: 66 },
-  { label: "Subtítulos premium ASS", progress: 74 },
-  { label: "Quemado de subtítulos", progress: 90 },
-  { label: "Vídeo final", progress: 100 },
-] as const;
 
 export function ProcessingJobPanel({ jobId }: { jobId: string }) {
   const processingStartedRef = useRef(false);
   const [job, setJob] = useState<VideoEditorJob | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retryAttempt, setRetryAttempt] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -101,17 +83,14 @@ export function ProcessingJobPanel({ jobId }: { jobId: string }) {
       processingStartedRef.current = true;
       processJob();
     }
-    const timer = window.setInterval(loadJob, 1200);
+    const timer = window.setInterval(loadJob, 1500);
 
     return () => {
       active = false;
       window.clearInterval(timer);
     };
-  }, [jobId]);
+  }, [jobId, retryAttempt]);
 
-  const status = useMemo(() => buildStatus(job), [job]);
-  const phaseList = useMemo(() => buildPhases(job?.progress ?? 0), [job]);
-  const logs = useMemo(() => buildLogs(job), [job]);
   const template = getTemplateById(job?.templateId);
   const config = normalizeVideoEditorConfig(job?.config ?? {
     templateId: job?.templateId,
@@ -125,7 +104,7 @@ export function ProcessingJobPanel({ jobId }: { jobId: string }) {
         </div>
       ) : null}
 
-      <ProgressStatusCard status={status} />
+      <ProgressStatusCard job={job} />
 
       <div className="grid gap-3 rounded-[8px] border border-white/10 bg-white/[0.06] p-5 text-sm text-zinc-200 shadow-[0_28px_90px_-60px_rgba(0,0,0,1)] backdrop-blur-xl md:grid-cols-[0.7fr_1fr_1fr]">
         <p>
@@ -153,11 +132,17 @@ export function ProcessingJobPanel({ jobId }: { jobId: string }) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,1.05fr)]">
-        <ProcessingPhaseList phases={phaseList} />
-        <LiveLogsPanel logs={logs} />
+        <ProcessingTimeline job={job} />
+        <LiveLogsPanel active={job?.status === "processing"} logs={job?.logs ?? []} />
       </div>
 
-      <div className="flex justify-end">
+      {job?.status === "failed" && job.errorMessage ? (
+        <div className="rounded-[8px] border border-rose-300/20 bg-rose-300/10 px-5 py-4 text-rose-100">
+          {job.errorMessage}
+        </div>
+      ) : null}
+
+      <div className="flex flex-col justify-end gap-3 sm:flex-row">
         {job?.status === "completed" ? (
           <Link
             href={`/video-editor/result?jobId=${encodeURIComponent(jobId)}`}
@@ -166,56 +151,27 @@ export function ProcessingJobPanel({ jobId }: { jobId: string }) {
             Ver resultado
           </Link>
         ) : null}
+        {job?.status === "failed" ? (
+          <>
+            <button
+              className="inline-flex min-h-14 w-full items-center justify-center rounded-[8px] border border-[#ecd3a3]/30 bg-[linear-gradient(135deg,#ead0a0,#b8853b)] px-7 text-base font-semibold text-zinc-950 sm:w-auto"
+              onClick={() => {
+                processingStartedRef.current = false;
+                setRetryAttempt((attempt) => attempt + 1);
+              }}
+              type="button"
+            >
+              Reintentar
+            </button>
+            <Link
+              href="/video-editor/library"
+              className="inline-flex min-h-14 w-full items-center justify-center rounded-[8px] border border-white/12 bg-white/[0.08] px-7 text-base font-semibold text-white sm:w-auto"
+            >
+              Volver a biblioteca
+            </Link>
+          </>
+        ) : null}
       </div>
     </section>
   );
-}
-
-function buildStatus(job: VideoEditorJob | null): ProcessingStatus {
-  if (!job) {
-    return {
-      eta: "--",
-      message: "Consultando job",
-      progress: 0,
-    };
-  }
-
-  return {
-    eta: job.status === "completed" ? "0s" : "--",
-    message: job.currentStep,
-    progress: job.progress,
-  };
-}
-
-function buildPhases(progress: number): ProcessingPhase[] {
-  const currentIndex = phases.findLastIndex((phase) => progress >= phase.progress);
-
-  return phases.map((phase, index) => ({
-    step: String(index + 1),
-    label: phase.label,
-    status:
-      progress >= 100 || index < currentIndex
-        ? "completed"
-        : index === Math.max(currentIndex, 0)
-          ? "current"
-          : "upcoming",
-  }));
-}
-
-function buildLogs(job: VideoEditorJob | null): LiveLog[] {
-  if (!job) {
-    return [
-      {
-        time: "00:00",
-        message: "Esperando estado del job...",
-        active: true,
-      },
-    ];
-  }
-
-  return job.logs.map((message, index) => ({
-    time: `00:${String(index * 3 + 1).padStart(2, "0")}`,
-    message,
-    active: index === job.logs.length - 1 && job.status !== "completed",
-  }));
 }

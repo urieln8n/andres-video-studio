@@ -17,7 +17,7 @@ export async function GET(
     return Response.json({ error: "Job no encontrado." }, { status: 404 });
   }
 
-  return Response.json({ job });
+  return Response.json({ ok: true, job });
 }
 
 export async function DELETE(

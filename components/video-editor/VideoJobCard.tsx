@@ -48,7 +48,9 @@ export function VideoJobCard({
       <div className="mt-4 rounded-[8px] border border-white/[0.08] bg-black/20 p-3 text-sm text-zinc-300">
         {job.hasFinalVideo
           ? "Vídeo final disponible para preview y descarga."
-          : "Todavía no hay un MP4 final disponible."}
+          : job.status === "processing"
+            ? `Procesando: ${job.progress}% · ${job.currentStepLabel || job.currentStep}`
+            : "Todavía no hay un MP4 final disponible."}
       </div>
 
       <div className="mt-auto grid gap-2 pt-5 sm:grid-cols-2">
@@ -58,12 +60,20 @@ export function VideoJobCard({
         >
           Ver resultado
         </Link>
+        {job.status === "processing" ? (
+          <Link
+            href={`/video-editor/processing?jobId=${encodeURIComponent(job.id)}`}
+            className="inline-flex min-h-11 items-center justify-center rounded-[8px] border border-white/12 bg-white/[0.08] px-3 text-sm font-semibold text-white transition hover:bg-white/[0.13]"
+          >
+            Ver progreso
+          </Link>
+        ) : null}
         {canProcess ? (
           <Link
             href={`/video-editor/processing?jobId=${encodeURIComponent(job.id)}`}
             className="inline-flex min-h-11 items-center justify-center rounded-[8px] border border-white/12 bg-white/[0.08] px-3 text-sm font-semibold text-white transition hover:bg-white/[0.13]"
           >
-            Procesar
+            {job.status === "failed" ? "Reintentar" : "Procesar"}
           </Link>
         ) : null}
         {canDownload ? (

@@ -4,6 +4,23 @@ export type VideoEditorJobStatus =
   | "completed"
   | "failed";
 
+export type VideoEditorPipelineStepId =
+  | "uploaded"
+  | "starting"
+  | "preparing"
+  | "trim_silences"
+  | "extracting_audio"
+  | "transcribing"
+  | "detecting_fillers"
+  | "cleaning_fillers"
+  | "generating_subtitles"
+  | "rendering_subtitles"
+  | "applying_hook_cta"
+  | "applying_motion"
+  | "exporting"
+  | "completed"
+  | "failed";
+
 export type VideoEditorSubtitleSegment = {
   start: number;
   end: number;
@@ -116,6 +133,15 @@ export type VideoEditorConfig = {
   motionMode: VideoEditorMotionMode;
 };
 
+export type VideoEditorJobMetrics = {
+  originalDuration?: number | null;
+  finalEstimatedDuration?: number | null;
+  removedSeconds?: number | null;
+  detectedSilencesCount?: number | null;
+  fillersCount?: number | null;
+  fillerRemovedSeconds?: number | null;
+};
+
 export type VideoEditorJob = {
   id: string;
   originalFileName: string;
@@ -151,7 +177,9 @@ export type VideoEditorJob = {
   status: VideoEditorJobStatus;
   progress: number;
   currentStep: string;
+  currentStepLabel?: string;
   logs: string[];
+  metrics?: VideoEditorJobMetrics;
   errorMessage?: string;
   createdAt: string;
   updatedAt: string;

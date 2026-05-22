@@ -1,6 +1,10 @@
-import type { LiveLog } from "@/lib/video-editor/mock-data";
-
-export function LiveLogsPanel({ logs }: { logs: LiveLog[] }) {
+export function LiveLogsPanel({
+  active,
+  logs,
+}: {
+  active: boolean;
+  logs: string[];
+}) {
   return (
     <section className="overflow-hidden rounded-[8px] border border-white/10 bg-white/[0.065] shadow-[0_28px_100px_-62px_rgba(0,0,0,0.95)] backdrop-blur-xl">
       <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 sm:px-6">
@@ -14,26 +18,32 @@ export function LiveLogsPanel({ logs }: { logs: LiveLog[] }) {
         </div>
         <span className="flex items-center gap-2 text-sm text-zinc-300">
           <span className="size-2 rounded-full bg-emerald-300 shadow-[0_0_18px_rgba(110,231,183,0.95)]" />
-          activo
+          {active ? "activo" : "cerrado"}
         </span>
       </div>
 
       <div className="min-h-[25rem] bg-black/25 p-5 font-mono text-sm leading-7 sm:p-6">
-        {logs.map((log) => (
+        {(logs.length ? logs : ["Esperando logs del job..."]).map(
+          (message, index, entries) => (
           <p
-            key={log.message}
+            key={`${index}-${message}`}
             className="flex gap-3 border-b border-white/[0.06] py-2"
           >
-            <span className="shrink-0 text-zinc-500">{log.time}</span>
+            <span className="shrink-0 text-zinc-500">
+              {String(index + 1).padStart(2, "0")}
+            </span>
             <span
               className={`min-w-0 break-words ${
-                log.active ? "text-[#efd8ad]" : "text-zinc-200"
+                active && index === entries.length - 1
+                  ? "text-[#efd8ad]"
+                  : "text-zinc-200"
               }`}
             >
-              {log.message}
+              {message}
             </span>
           </p>
-        ))}
+          ),
+        )}
       </div>
     </section>
   );
