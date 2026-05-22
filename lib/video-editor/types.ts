@@ -76,6 +76,17 @@ export type VideoEditorFillerPlan = {
   warnings: string[];
 };
 
+export type VideoEditorCommercialTemplateStyle = "premium-dark";
+
+export type VideoEditorCommercialTemplate = {
+  id: "barberia" | "negocio_local" | "agencia_ia" | "podcast" | "generico";
+  name: string;
+  hook: string;
+  cta: string;
+  accentColor: string;
+  style: VideoEditorCommercialTemplateStyle;
+};
+
 export type VideoEditorJob = {
   id: string;
   originalFileName: string;
@@ -94,6 +105,11 @@ export type VideoEditorJob = {
   fillerRemovedSeconds?: number | null;
   fillerCleanVideoPath?: string | null;
   finalTranscriptPath?: string | null;
+  templateId?: VideoEditorCommercialTemplate["id"] | null;
+  hookText?: string | null;
+  ctaText?: string | null;
+  overlayPath?: string | null;
+  finalVideoPath?: string | null;
   originalDuration?: number | null;
   finalEstimatedDuration?: number | null;
   removedSeconds?: number | null;

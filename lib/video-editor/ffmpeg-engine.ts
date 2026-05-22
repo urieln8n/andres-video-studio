@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { copyFile } from "node:fs/promises";
 import path from "node:path";
 
 import {
@@ -12,10 +13,12 @@ import {
   getInputAbsolutePath,
   getOutputAbsolutePath,
   getOutputRelativePath,
+  getSubtitledOutputAbsolutePath,
   getVerticalTempAbsolutePath,
   readJob,
   updateJob,
 } from "@/lib/video-editor/job-store";
+import { selectCommercialTemplate } from "@/lib/video-editor/commercial-template-engine";
 import {
   createEditPlan,
   createKeepRangesForCuts,
@@ -25,6 +28,7 @@ import {
   createFillerPlan,
   writeFillerPlan,
 } from "@/lib/video-editor/filler-detector";
+import { renderCommercialOverlays } from "@/lib/video-editor/overlay-engine";
 import { detectVideoSilences } from "@/lib/video-editor/silence-detector";
 import { createPremiumAssSubtitles } from "@/lib/video-editor/subtitle-engine";
 import { transcribeAudioWithWhisper } from "@/lib/video-editor/transcription-engine";
@@ -65,6 +69,7 @@ async function runVideoEditorJob(jobId: string) {
   const cleanAbsolutePath = getCleanTempAbsolutePath(job.id);
   const fillerCleanAbsolutePath = getFillerCleanTempAbsolutePath(job.id);
   const verticalAbsolutePath = getVerticalTempAbsolutePath(job.id);
+  const subtitledAbsolutePath = getSubtitledOutputAbsolutePath(job.id);
   const outputAbsolutePath = getOutputAbsolutePath(job.id);
 
   await ensureVideoEditorStorage();
@@ -74,6 +79,7 @@ async function runVideoEditorJob(jobId: string) {
     job.subtitlesPath &&
     job.transcriptPath &&
     job.editPlanPath &&
+    job.finalVideoPath &&
     (await fileHasContent(outputAbsolutePath))
   ) {
     return job;
@@ -92,6 +98,11 @@ async function runVideoEditorJob(jobId: string) {
           fillerRemovedSeconds: null,
           fillerCleanVideoPath: null,
           finalTranscriptPath: null,
+          templateId: null,
+          hookText: null,
+          ctaText: null,
+          overlayPath: null,
+          finalVideoPath: null,
           cleanVideoPath: null,
           originalDuration: null,
           finalEstimatedDuration: null,
@@ -346,7 +357,7 @@ async function runVideoEditorJob(jobId: string) {
       appendJobLog(
         {
           ...currentJob,
-          progress: 92,
+          progress: 88,
           currentStep: "Quemando subtítulos del vídeo limpio",
         },
         "Quemando subtítulos del vídeo limpio",
@@ -356,11 +367,91 @@ async function runVideoEditorJob(jobId: string) {
     await renderSubtitledVideo(
       verticalAbsolutePath,
       subtitles.subtitleAbsolutePath,
-      outputAbsolutePath,
+      subtitledAbsolutePath,
     );
 
-    if (!(await fileHasContent(outputAbsolutePath))) {
+    if (!(await fileHasContent(subtitledAbsolutePath))) {
       throw new Error("FFmpeg terminó sin crear el vídeo final subtitulado.");
+    }
+
+    const commercialJob = await updateJob(job.id, (currentJob) =>
+      appendJobLog(
+        {
+          ...currentJob,
+          progress: 92,
+          currentStep: "Seleccionando plantilla comercial",
+        },
+        "Seleccionando plantilla comercial",
+      ),
+    );
+
+    if (!commercialJob) {
+      throw new Error("El job desapareció antes del render comercial.");
+    }
+
+    const commercialTemplate = selectCommercialTemplate(commercialJob);
+
+    await updateJob(job.id, (currentJob) =>
+      appendJobLog(
+        {
+          ...currentJob,
+          templateId: commercialTemplate.id,
+          hookText: commercialTemplate.hook,
+          ctaText: commercialTemplate.cta,
+        },
+        "Hook generado",
+      ),
+    );
+    await updateJob(job.id, (currentJob) =>
+      appendJobLog(currentJob, "CTA generado"),
+    );
+    await updateJob(job.id, (currentJob) =>
+      appendJobLog(
+        {
+          ...currentJob,
+          progress: 96,
+          currentStep: "Aplicando hook y CTA comercial",
+        },
+        "Aplicando overlay inicial",
+      ),
+    );
+    await updateJob(job.id, (currentJob) =>
+      appendJobLog(currentJob, "Aplicando CTA final"),
+    );
+
+    const commercialDuration = Math.max(
+      0,
+      editPlan.finalEstimatedDuration - fillerPlan.removedSeconds,
+    );
+    let overlayPath: string | null = null;
+
+    try {
+      const overlay = await renderCommercialOverlays({
+        jobId: job.id,
+        inputAbsolutePath: subtitledAbsolutePath,
+        outputAbsolutePath,
+        duration: commercialDuration,
+        template: commercialTemplate,
+      });
+
+      overlayPath = overlay.overlayRelativePath;
+    } catch (error) {
+      const warning =
+        error instanceof Error
+          ? error.message
+          : "FFmpeg no pudo aplicar el overlay comercial.";
+
+      await copyFile(subtitledAbsolutePath, outputAbsolutePath);
+      await updateJob(job.id, (currentJob) =>
+        appendJobLog(
+          currentJob,
+          `Warning: overlay comercial omitido. ${warning}`,
+        ),
+      );
+    }
+
+    if (!(await fileHasContent(outputAbsolutePath))) {
+      throw new Error("No se pudo guardar el vídeo comercial final.");
     }
 
     return await updateJob(job.id, (currentJob) =>
@@ -368,12 +459,14 @@ async function runVideoEditorJob(jobId: string) {
         {
           ...currentJob,
           outputPath: getOutputRelativePath(currentJob.id),
+          finalVideoPath: getOutputRelativePath(currentJob.id),
+          overlayPath,
           status: "completed",
           progress: 100,
-          currentStep: "Vídeo final con subtítulos generado",
+          currentStep: "Render comercial completado",
           errorMessage: undefined,
         },
-        "Render final completado",
+        "Render comercial completado",
       ),
     );
   } catch (error) {

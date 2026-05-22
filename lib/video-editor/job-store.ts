@@ -85,6 +85,18 @@ export function getSubtitleRelativePath(jobId: string) {
   return path.posix.join("storage", "temp", `${jobId}.ass`);
 }
 
+export function getCommercialOverlayAbsolutePath(jobId: string) {
+  return path.join(tempRoot, `${jobId}_commercial_overlay.ffgraph`);
+}
+
+export function getCommercialOverlayRelativePath(jobId: string) {
+  return path.posix.join(
+    "storage",
+    "temp",
+    `${jobId}_commercial_overlay.ffgraph`,
+  );
+}
+
 export function getVerticalTempAbsolutePath(jobId: string) {
   return path.join(tempRoot, `${jobId}_vertical.mp4`);
 }
@@ -164,6 +176,11 @@ export function createUploadedJob(fileName: string) {
     fillerRemovedSeconds: null,
     fillerCleanVideoPath: null,
     finalTranscriptPath: null,
+    templateId: null,
+    hookText: null,
+    ctaText: null,
+    overlayPath: null,
+    finalVideoPath: null,
     originalDuration: null,
     finalEstimatedDuration: null,
     removedSeconds: null,
