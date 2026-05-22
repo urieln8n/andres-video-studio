@@ -5,6 +5,8 @@ import path from "node:path";
 import {
   ensureVideoEditorStorage,
   fileHasContent,
+  getFinalTranscriptAbsolutePath,
+  getFinalTranscriptRelativePath,
   getTranscriptAbsolutePath,
   getTranscriptRelativePath,
 } from "@/lib/video-editor/job-store";
@@ -17,6 +19,7 @@ const maxPythonOutputLength = 8_000;
 export async function transcribeAudioWithWhisper(
   jobId: string,
   audioAbsolutePath: string,
+  target: "analysis" | "final" = "analysis",
 ) {
   if (!(await fileHasContent(audioAbsolutePath))) {
     throw new Error("No existe el audio WAV que se va a transcribir.");
@@ -24,7 +27,10 @@ export async function transcribeAudioWithWhisper(
 
   await ensureVideoEditorStorage();
 
-  const transcriptAbsolutePath = getTranscriptAbsolutePath(jobId);
+  const transcriptAbsolutePath =
+    target === "final"
+      ? getFinalTranscriptAbsolutePath(jobId)
+      : getTranscriptAbsolutePath(jobId);
   const { command, leadingArgs } = await getPythonCommand();
 
   await runPython(command, [
@@ -47,7 +53,10 @@ export async function transcribeAudioWithWhisper(
   return {
     transcript: await readTranscript(transcriptAbsolutePath),
     transcriptAbsolutePath,
-    transcriptRelativePath: getTranscriptRelativePath(jobId),
+    transcriptRelativePath:
+      target === "final"
+        ? getFinalTranscriptRelativePath(jobId)
+        : getTranscriptRelativePath(jobId),
   };
 }
 
@@ -55,14 +64,28 @@ async function readTranscript(transcriptAbsolutePath: string) {
   const value = JSON.parse(
     await readFile(transcriptAbsolutePath, "utf8"),
   ) as Partial<VideoEditorTranscript>;
-  const segments = value.segments?.filter(
-    (segment) =>
-      typeof segment?.start === "number" &&
-      typeof segment.end === "number" &&
-      segment.end > segment.start &&
-      typeof segment.text === "string" &&
-      segment.text.trim().length > 0,
-  );
+  const segments = value.segments
+    ?.filter(
+      (segment) =>
+        typeof segment?.start === "number" &&
+        typeof segment.end === "number" &&
+        segment.end > segment.start &&
+        typeof segment.text === "string" &&
+        segment.text.trim().length > 0,
+    )
+    .map((segment) => ({
+      start: segment.start,
+      end: segment.end,
+      text: segment.text,
+      words: segment.words?.filter(
+        (word) =>
+          typeof word?.start === "number" &&
+          typeof word.end === "number" &&
+          word.end > word.start &&
+          typeof word.word === "string" &&
+          word.word.trim().length > 0,
+      ),
+    }));
 
   if (
     !Array.isArray(segments) ||

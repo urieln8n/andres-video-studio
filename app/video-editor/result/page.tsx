@@ -61,12 +61,28 @@ export default async function VideoResultPage({
     { label: "Vídeo limpio", value: job.cleanVideoPath || "Pendiente" },
     { label: "Plan de edición", value: job.editPlanPath || "Pendiente" },
     {
+      label: "Plan de fillers",
+      value: job.fillerPlanPath || "Pendiente",
+    },
+    {
       label: "Silencios detectados",
       value: String(job.detectedSilencesCount ?? "Pendiente"),
     },
     {
       label: "Segundos eliminados",
       value: formatSeconds(job.removedSeconds),
+    },
+    {
+      label: "Fillers detectados",
+      value: String(job.fillersCount ?? "Pendiente"),
+    },
+    {
+      label: "Segundos eliminados por fillers",
+      value: formatSeconds(job.fillerRemovedSeconds),
+    },
+    {
+      label: "Vídeo limpio de fillers",
+      value: job.fillerCleanVideoPath || "Pendiente",
     },
     {
       label: "Duración original",
@@ -78,6 +94,10 @@ export default async function VideoResultPage({
     },
     { label: "Output", value: job.outputPath || "Pendiente" },
     { label: "Transcript", value: job.transcriptPath || "Pendiente" },
+    {
+      label: "Transcript final",
+      value: job.finalTranscriptPath || "Pendiente",
+    },
     { label: "Idioma", value: job.language || "Pendiente" },
     {
       label: "Texto transcrito",

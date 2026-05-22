@@ -7,6 +7,8 @@ import {
   getAudioTempAbsolutePath,
   getCleanTempAbsolutePath,
   getCleanTempRelativePath,
+  getFillerCleanTempAbsolutePath,
+  getFillerCleanTempRelativePath,
   getInputAbsolutePath,
   getOutputAbsolutePath,
   getOutputRelativePath,
@@ -14,13 +16,22 @@ import {
   readJob,
   updateJob,
 } from "@/lib/video-editor/job-store";
-import { createEditPlan, writeEditPlan } from "@/lib/video-editor/edit-plan";
+import {
+  createEditPlan,
+  createKeepRangesForCuts,
+  writeEditPlan,
+} from "@/lib/video-editor/edit-plan";
+import {
+  createFillerPlan,
+  writeFillerPlan,
+} from "@/lib/video-editor/filler-detector";
 import { detectVideoSilences } from "@/lib/video-editor/silence-detector";
 import { createPremiumAssSubtitles } from "@/lib/video-editor/subtitle-engine";
 import { transcribeAudioWithWhisper } from "@/lib/video-editor/transcription-engine";
 import type {
   VideoEditorJob,
   VideoEditorKeepRange,
+  VideoEditorTranscript,
 } from "@/lib/video-editor/types";
 
 const ffmpegCommand = "ffmpeg";
@@ -52,6 +63,7 @@ async function runVideoEditorJob(jobId: string) {
   const inputAbsolutePath = getInputAbsolutePath(job.storedFileName);
   const audioAbsolutePath = getAudioTempAbsolutePath(job.id);
   const cleanAbsolutePath = getCleanTempAbsolutePath(job.id);
+  const fillerCleanAbsolutePath = getFillerCleanTempAbsolutePath(job.id);
   const verticalAbsolutePath = getVerticalTempAbsolutePath(job.id);
   const outputAbsolutePath = getOutputAbsolutePath(job.id);
 
@@ -75,6 +87,11 @@ async function runVideoEditorJob(jobId: string) {
           outputPath: null,
           subtitlesPath: null,
           editPlanPath: null,
+          fillerPlanPath: null,
+          fillersCount: null,
+          fillerRemovedSeconds: null,
+          fillerCleanVideoPath: null,
+          finalTranscriptPath: null,
           cleanVideoPath: null,
           originalDuration: null,
           finalEstimatedDuration: null,
@@ -204,20 +221,94 @@ async function runVideoEditorJob(jobId: string) {
       appendJobLog(currentJob, "Iniciando transcripción con Whisper"),
     );
 
-    await tryTranscription(job.id, audioAbsolutePath);
+    const cleanTranscript = await tryTranscription(job.id, audioAbsolutePath);
+
+    await updateJob(job.id, (currentJob) =>
+      appendJobLog(
+        {
+          ...currentJob,
+          progress: 56,
+          currentStep: "Analizando muletillas",
+        },
+        "Analizando muletillas con timestamps de palabra",
+      ),
+    );
+
+    const fillerPlan = createFillerPlan({
+      jobId: job.id,
+      inputPath: editPlan.cleanPath,
+      outputPath: getFillerCleanTempRelativePath(job.id),
+      transcript: cleanTranscript,
+    });
+
+    await updateJob(job.id, (currentJob) =>
+      appendJobLog(currentJob, "Fillers detectados"),
+    );
+    await updateJob(job.id, (currentJob) =>
+      appendJobLog(currentJob, "Generando plan de limpieza de fillers"),
+    );
+
+    const fillerPlanFile = await writeFillerPlan(fillerPlan);
+    const fillerSourceAbsolutePath =
+      fillerPlan.mode === "cut"
+        ? await createFillerCleanVideo({
+            inputAbsolutePath: cleanSourceAbsolutePath,
+            outputAbsolutePath: fillerCleanAbsolutePath,
+            duration: editPlan.finalEstimatedDuration,
+            keepRanges: createKeepRangesForCuts(
+              editPlan.finalEstimatedDuration,
+              fillerPlan.cutRanges,
+            ),
+            jobId: job.id,
+          })
+        : cleanSourceAbsolutePath;
+
+    await updateJob(job.id, (currentJob) =>
+      appendJobLog(
+        {
+          ...currentJob,
+          fillerPlanPath: fillerPlanFile.relativePath,
+          fillersCount: fillerPlan.fillersCount,
+          fillerRemovedSeconds: fillerPlan.removedSeconds,
+          fillerCleanVideoPath:
+            fillerPlan.mode === "cut"
+              ? fillerPlan.outputPath
+              : editPlan.cleanPath,
+          progress: 62,
+          currentStep: "Vídeo limpio de fillers preparado",
+        },
+        fillerPlan.warnings.length
+          ? `Vídeo limpio de fillers generado. ${fillerPlan.warnings.join(" ")}`
+          : "Vídeo limpio de fillers generado",
+      ),
+    );
 
     await updateJob(job.id, (currentJob) =>
       appendJobLog(
         {
           ...currentJob,
           progress: 66,
+          currentStep: "Re-transcribiendo vídeo final limpio",
+        },
+        "Re-transcribiendo vídeo final limpio",
+      ),
+    );
+
+    await extractAudioWav(fillerSourceAbsolutePath, audioAbsolutePath);
+    await tryTranscription(job.id, audioAbsolutePath, "final");
+
+    await updateJob(job.id, (currentJob) =>
+      appendJobLog(
+        {
+          ...currentJob,
+          progress: 72,
           currentStep: "Renderizando formato vertical 9:16",
         },
         "FFmpeg disponible. Iniciando render vertical 9:16.",
       ),
     );
 
-    await renderVerticalVideo(cleanSourceAbsolutePath, verticalAbsolutePath);
+    await renderVerticalVideo(fillerSourceAbsolutePath, verticalAbsolutePath);
 
     if (!(await fileHasContent(verticalAbsolutePath))) {
       throw new Error("FFmpeg terminó sin crear el vídeo vertical intermedio.");
@@ -227,10 +318,10 @@ async function runVideoEditorJob(jobId: string) {
       appendJobLog(
         {
           ...currentJob,
-          progress: 74,
-          currentStep: "Generando subtítulos del vídeo limpio",
+          progress: 78,
+          currentStep: "Generando subtítulos finales sincronizados",
         },
-        "Generando subtítulos del vídeo limpio",
+        "Generando subtítulos finales sincronizados",
       ),
     );
 
@@ -244,7 +335,7 @@ async function runVideoEditorJob(jobId: string) {
       appendJobLog(
         {
           ...currentJob,
-          progress: 82,
+          progress: 84,
           subtitlesPath: subtitles.subtitleRelativePath,
         },
         "Archivo ASS creado",
@@ -255,7 +346,7 @@ async function runVideoEditorJob(jobId: string) {
       appendJobLog(
         {
           ...currentJob,
-          progress: 90,
+          progress: 92,
           currentStep: "Quemando subtítulos del vídeo limpio",
         },
         "Quemando subtítulos del vídeo limpio",
@@ -368,6 +459,35 @@ async function createCleanVideo({
   return cleanAbsolutePath;
 }
 
+async function createFillerCleanVideo({
+  inputAbsolutePath,
+  outputAbsolutePath,
+  duration,
+  keepRanges,
+  jobId,
+}: {
+  inputAbsolutePath: string;
+  outputAbsolutePath: string;
+  duration: number;
+  keepRanges: VideoEditorKeepRange[];
+  jobId: string;
+}) {
+  if (keepRanges.length === 0 || !Number.isFinite(duration) || duration <= 0) {
+    throw new Error("El plan de fillers no conserva ningún tramo válido.");
+  }
+
+  await updateJob(jobId, (currentJob) =>
+    appendJobLog(currentJob, "Recortando muletillas seguras"),
+  );
+  await trimKeepRanges(inputAbsolutePath, outputAbsolutePath, keepRanges);
+
+  if (!(await fileHasContent(outputAbsolutePath))) {
+    throw new Error("FFmpeg terminó sin crear el vídeo limpio de fillers.");
+  }
+
+  return outputAbsolutePath;
+}
+
 async function trimKeepRanges(
   inputPath: string,
   outputPath: string,
@@ -447,26 +567,39 @@ async function renderSubtitledVideo(
   ]);
 }
 
-async function tryTranscription(jobId: string, audioAbsolutePath: string) {
+async function tryTranscription(
+  jobId: string,
+  audioAbsolutePath: string,
+  target: "analysis" | "final" = "analysis",
+): Promise<VideoEditorTranscript | null> {
   try {
-    const result = await transcribeAudioWithWhisper(jobId, audioAbsolutePath);
+    const result = await transcribeAudioWithWhisper(jobId, audioAbsolutePath, target);
 
     await updateJob(jobId, (currentJob) =>
       appendJobLog(
         {
           ...currentJob,
-          transcriptPath: result.transcriptRelativePath,
+          transcriptPath:
+            target === "analysis"
+              ? result.transcriptRelativePath
+              : currentJob.transcriptPath,
+          finalTranscriptPath:
+            target === "final"
+              ? result.transcriptRelativePath
+              : currentJob.finalTranscriptPath,
           language: result.transcript.language,
           transcriptionText: result.transcript.text,
           transcriptSegments: result.transcript.segments,
-          progress: 48,
+          progress: target === "final" ? 68 : 48,
           currentStep: "Transcripción completada",
         },
-        "Transcripción completada",
+        target === "final"
+          ? "Transcripción final completada"
+          : "Transcripción completada",
       ),
     );
 
-    return result.transcript.segments.length > 0;
+    return result.transcript;
   } catch (error) {
     const errorMessage =
       error instanceof Error
@@ -477,14 +610,14 @@ async function tryTranscription(jobId: string, audioAbsolutePath: string) {
       appendJobLog(
         {
           ...currentJob,
-          progress: 48,
+          progress: target === "final" ? 68 : 48,
           currentStep: "Transcripción no disponible; usando subtítulos mock",
         },
         `Transcripción no disponible. Usando subtítulos mock. ${errorMessage}`,
       ),
     );
 
-    return false;
+    return null;
   }
 }
 

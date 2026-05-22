@@ -97,12 +97,28 @@ export function getCleanTempRelativePath(jobId: string) {
   return path.posix.join("storage", "temp", `${jobId}_clean.mp4`);
 }
 
+export function getFillerCleanTempAbsolutePath(jobId: string) {
+  return path.join(tempRoot, `${jobId}_clean_fillers.mp4`);
+}
+
+export function getFillerCleanTempRelativePath(jobId: string) {
+  return path.posix.join("storage", "temp", `${jobId}_clean_fillers.mp4`);
+}
+
 export function getEditPlanAbsolutePath(jobId: string) {
   return path.join(tempRoot, `${jobId}_edit_plan.json`);
 }
 
 export function getEditPlanRelativePath(jobId: string) {
   return path.posix.join("storage", "temp", `${jobId}_edit_plan.json`);
+}
+
+export function getFillerPlanAbsolutePath(jobId: string) {
+  return path.join(tempRoot, `${jobId}_filler_plan.json`);
+}
+
+export function getFillerPlanRelativePath(jobId: string) {
+  return path.posix.join("storage", "temp", `${jobId}_filler_plan.json`);
 }
 
 export function getAudioTempAbsolutePath(jobId: string) {
@@ -115,6 +131,14 @@ export function getTranscriptAbsolutePath(jobId: string) {
 
 export function getTranscriptRelativePath(jobId: string) {
   return path.posix.join("storage", "transcripts", `${jobId}.json`);
+}
+
+export function getFinalTranscriptAbsolutePath(jobId: string) {
+  return path.join(transcriptsRoot, `${jobId}_final.json`);
+}
+
+export function getFinalTranscriptRelativePath(jobId: string) {
+  return path.posix.join("storage", "transcripts", `${jobId}_final.json`);
 }
 
 export function createUploadedJob(fileName: string) {
@@ -135,6 +159,11 @@ export function createUploadedJob(fileName: string) {
     transcriptionText: null,
     cleanVideoPath: null,
     editPlanPath: null,
+    fillerPlanPath: null,
+    fillersCount: null,
+    fillerRemovedSeconds: null,
+    fillerCleanVideoPath: null,
+    finalTranscriptPath: null,
     originalDuration: null,
     finalEstimatedDuration: null,
     removedSeconds: null,

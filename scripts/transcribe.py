@@ -44,6 +44,7 @@ def main() -> int:
         str(audio_path),
         language=language,
         vad_filter=True,
+        word_timestamps=True,
     )
 
     transcript_segments = []
@@ -55,13 +56,39 @@ def main() -> int:
         if not text:
             continue
 
-        transcript_segments.append(
-            {
-                "start": float(segment.start),
-                "end": float(segment.end),
-                "text": text,
-            }
-        )
+        transcript_words = []
+
+        for word in getattr(segment, "words", []) or []:
+            word_text = getattr(word, "word", "").strip()
+            word_start = getattr(word, "start", None)
+            word_end = getattr(word, "end", None)
+
+            if (
+                not word_text
+                or word_start is None
+                or word_end is None
+                or word_end <= word_start
+            ):
+                continue
+
+            transcript_words.append(
+                {
+                    "start": float(word_start),
+                    "end": float(word_end),
+                    "word": word_text,
+                }
+            )
+
+        transcript_segment = {
+            "start": float(segment.start),
+            "end": float(segment.end),
+            "text": text,
+        }
+
+        if transcript_words:
+            transcript_segment["words"] = transcript_words
+
+        transcript_segments.append(transcript_segment)
         full_text_parts.append(text)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)

@@ -6,6 +6,7 @@ import {
   getEditPlanRelativePath,
 } from "@/lib/video-editor/job-store";
 import type {
+  VideoEditorCutRange,
   VideoEditorEditPlan,
   VideoEditorKeepRange,
   VideoEditorSilence,
@@ -93,6 +94,35 @@ function createKeepRanges(
   }
 
   return ranges.filter((range) => range.duration > 0);
+}
+
+export function createKeepRangesForCuts(
+  duration: number,
+  cutRanges: VideoEditorCutRange[],
+) {
+  const mergedCutRanges = cutRanges
+    .map((range) => ({
+      start: Math.max(0, Math.min(duration, range.start)),
+      end: Math.max(0, Math.min(duration, range.end)),
+    }))
+    .filter((range) => range.end > range.start)
+    .sort((left, right) => left.start - right.start)
+    .reduce<Array<{ start: number; end: number }>>((ranges, range) => {
+      const previous = ranges.at(-1);
+
+      if (!previous || range.start > previous.end) {
+        ranges.push(range);
+        return ranges;
+      }
+
+      previous.end = Math.max(previous.end, range.end);
+      return ranges;
+    }, []);
+
+  return createKeepRanges(
+    duration,
+    mergedCutRanges,
+  );
 }
 
 function toKeepRange(start: number, end: number) {

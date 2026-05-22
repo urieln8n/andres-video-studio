@@ -8,6 +8,13 @@ export type VideoEditorSubtitleSegment = {
   start: number;
   end: number;
   text: string;
+  words?: VideoEditorTranscriptWord[];
+};
+
+export type VideoEditorTranscriptWord = {
+  start: number;
+  end: number;
+  word: string;
 };
 
 export type VideoEditorTranscript = {
@@ -43,6 +50,32 @@ export type VideoEditorEditPlan = {
   warning?: string;
 };
 
+export type VideoEditorFiller = {
+  text: string;
+  start: number;
+  end: number;
+  duration: number;
+  confidence: "safe";
+};
+
+export type VideoEditorCutRange = {
+  start: number;
+  end: number;
+  duration: number;
+};
+
+export type VideoEditorFillerPlan = {
+  jobId: string;
+  inputPath: string;
+  outputPath: string;
+  detectedFillers: VideoEditorFiller[];
+  cutRanges: VideoEditorCutRange[];
+  removedSeconds: number;
+  fillersCount: number;
+  mode: "cut" | "report_only" | "skipped";
+  warnings: string[];
+};
+
 export type VideoEditorJob = {
   id: string;
   originalFileName: string;
@@ -56,6 +89,11 @@ export type VideoEditorJob = {
   transcriptSegments?: VideoEditorSubtitleSegment[];
   cleanVideoPath?: string | null;
   editPlanPath?: string | null;
+  fillerPlanPath?: string | null;
+  fillersCount?: number | null;
+  fillerRemovedSeconds?: number | null;
+  fillerCleanVideoPath?: string | null;
+  finalTranscriptPath?: string | null;
   originalDuration?: number | null;
   finalEstimatedDuration?: number | null;
   removedSeconds?: number | null;
