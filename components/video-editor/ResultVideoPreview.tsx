@@ -1,7 +1,32 @@
-export function ResultVideoPreview() {
+export function ResultVideoPreview({
+  outputAvailable,
+  videoSrc,
+}: {
+  outputAvailable: boolean;
+  videoSrc: string;
+}) {
   return (
     <section className="rounded-[8px] border border-white/10 bg-white/[0.07] p-4 shadow-[0_34px_120px_-70px_rgba(0,0,0,1)] backdrop-blur-xl sm:p-5">
       <div className="mx-auto aspect-[9/16] w-full max-w-[25rem] overflow-hidden rounded-[8px] border border-white/10 bg-[linear-gradient(180deg,#272321_0%,#111111_42%,#080808_100%)]">
+        {outputAvailable ? (
+          <video
+            className="h-full w-full bg-black object-contain"
+            controls
+            playsInline
+            preload="metadata"
+          >
+            <source src={videoSrc} type="video/mp4" />
+          </video>
+        ) : (
+          <MockPreview />
+        )}
+      </div>
+    </section>
+  );
+}
+
+function MockPreview() {
+  return (
         <div className="flex h-full flex-col justify-between p-5 sm:p-6">
           <div className="flex items-start justify-between gap-4">
             <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-medium uppercase text-zinc-200">
@@ -15,7 +40,7 @@ export function ResultVideoPreview() {
           <div className="flex flex-col items-center text-center">
             <button
               aria-label="Reproducir vista previa"
-              className="grid size-24 place-items-center rounded-full border border-white/15 bg-white/[0.12] text-white shadow-[0_26px_80px_-28px_rgba(0,0,0,1)] backdrop-blur-xl"
+              className="grid size-24 cursor-default place-items-center rounded-full border border-white/15 bg-white/[0.12] text-white shadow-[0_26px_80px_-28px_rgba(0,0,0,1)] backdrop-blur-xl"
               type="button"
             >
               <svg
@@ -47,7 +72,5 @@ export function ResultVideoPreview() {
             </div>
           </div>
         </div>
-      </div>
-    </section>
   );
 }

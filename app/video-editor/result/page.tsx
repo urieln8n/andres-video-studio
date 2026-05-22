@@ -7,10 +7,10 @@ import { VideoDetailsCard } from "@/components/video-editor/VideoDetailsCard";
 import type { VideoDetail } from "@/lib/video-editor/mock-data";
 import {
   fileHasContent,
-  getOutputAbsolutePathFromRelative,
   getSubtitleAbsolutePath,
   readJob,
 } from "@/lib/video-editor/job-store";
+import { resolveFinalVideoFile } from "@/lib/video-editor/file-response";
 import { getTemplateById } from "@/lib/video-editor/templates";
 import { normalizeVideoEditorConfig } from "@/lib/video-editor/config";
 
@@ -45,15 +45,13 @@ export default async function VideoResultPage({
     );
   }
 
-  const outputAvailable = Boolean(
-    job.outputPath &&
-      (await fileHasContent(getOutputAbsolutePathFromRelative(job.outputPath))),
-  );
+  const finalVideo = await resolveFinalVideoFile(job);
+  const outputAvailable = Boolean(finalVideo);
   const subtitlesAvailable = Boolean(
     job.subtitlesPath && (await fileHasContent(getSubtitleAbsolutePath(job.id))),
   );
-  const outputFileName = job.outputPath
-    ? path.posix.basename(job.outputPath)
+  const outputFileName = finalVideo
+    ? path.basename(finalVideo.absolutePath)
     : "Pendiente";
   const template = getTemplateById(job.templateId);
   const config = normalizeVideoEditorConfig(job.config ?? {
@@ -61,9 +59,12 @@ export default async function VideoResultPage({
   });
   const details: VideoDetail[] = [
     { label: "Job ID", value: job.id },
-    { label: "Archivo subido", value: job.originalFileName },
-    { label: "Archivo guardado", value: job.storedFileName },
-    { label: "Input", value: job.inputPath },
+    { label: "Nombre original", value: job.originalFileName },
+    { label: "Archivo final", value: outputFileName },
+    {
+      label: "Ruta output local",
+      value: finalVideo?.relativePath || "Pendiente",
+    },
     { label: "Vídeo limpio", value: job.cleanVideoPath || "Pendiente" },
     { label: "Plan de edición", value: job.editPlanPath || "Pendiente" },
     {
@@ -95,10 +96,9 @@ export default async function VideoResultPage({
       value: formatSeconds(job.originalDuration),
     },
     {
-      label: "Duración estimada final",
+      label: "Duración final",
       value: formatSeconds(job.finalEstimatedDuration),
     },
-    { label: "Output", value: job.outputPath || "Pendiente" },
     { label: "Plantilla usada", value: template.name },
     { label: "Formato usado", value: config.outputFormat },
     { label: "Estilo de subtítulos", value: config.subtitleStyle },
@@ -150,7 +150,6 @@ export default async function VideoResultPage({
       label: "ASS creado",
       value: subtitlesAvailable ? "Disponible" : "Pendiente",
     },
-    { label: "Formato", value: "9:16 vertical FFmpeg con subtítulos" },
     { label: "Estado", value: job.status },
     { label: "Paso actual", value: job.currentStep },
   ];
@@ -158,7 +157,10 @@ export default async function VideoResultPage({
   return (
     <main className="flex flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
       <section className="mx-auto grid w-full max-w-7xl items-start gap-6 lg:grid-cols-[minmax(320px,0.78fr)_minmax(0,1.22fr)]">
-        <ResultVideoPreview />
+        <ResultVideoPreview
+          outputAvailable={outputAvailable}
+          videoSrc={`/api/video-editor/jobs/${encodeURIComponent(job.id)}/video`}
+        />
 
         <div className="flex flex-col gap-6">
           <div className="rounded-[8px] border border-white/10 bg-white/[0.07] p-6 shadow-[0_28px_110px_-56px_rgba(0,0,0,0.95)] backdrop-blur-xl sm:p-8">
@@ -184,14 +186,15 @@ export default async function VideoResultPage({
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg">
               {outputAvailable
-                ? "El render final ya existe en el storage local."
-                : "El job existe, pero todavía no hay un archivo final válido."}
+                ? "Ya puedes revisarlo, descargarlo o crear otro vídeo."
+                : "El vídeo final todavía no está disponible."}
             </p>
 
             <div className="mt-8">
               <ResultActions
+                jobId={job.id}
                 outputAvailable={outputAvailable}
-                outputPath={job.outputPath}
+                outputPath={finalVideo?.relativePath || null}
               />
             </div>
           </div>

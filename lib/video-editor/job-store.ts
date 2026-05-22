@@ -67,6 +67,10 @@ export function getOutputRelativePath(jobId: string) {
   return path.posix.join("storage", "output", `${jobId}_final.mp4`);
 }
 
+export function getOutputRootAbsolutePath() {
+  return path.resolve(outputRoot);
+}
+
 export function getSubtitledOutputAbsolutePath(jobId: string) {
   return path.join(outputRoot, `${jobId}_subtitled.mp4`);
 }
