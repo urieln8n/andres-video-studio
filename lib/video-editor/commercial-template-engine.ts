@@ -20,7 +20,7 @@ export function selectCommercialTemplate(job: VideoEditorJob) {
 
   return {
     ...template,
-    hook: config.hookText ?? autoHook,
-    cta: config.ctaText ?? autoCta,
+    hook: job.finalCopy?.selectedHook ?? job.finalHookText ?? config.hookText ?? autoHook,
+    cta: job.finalCopy?.selectedCta ?? job.finalCtaText ?? config.ctaText ?? autoCta,
   };
 }

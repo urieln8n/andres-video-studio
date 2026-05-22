@@ -17,15 +17,29 @@ export function VideoLibraryGrid({
 }) {
   const [jobs, setJobs] = useState(initialJobs);
   const [filter, setFilter] = useState<LibraryFilter>("all");
+  const [clientId, setClientId] = useState("all");
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const visibleJobs = useMemo(
     () =>
       jobs.filter(
-        (job) => matchesFilter(job, filter) && matchesSearch(job, search),
+        (job) =>
+          matchesFilter(job, filter) &&
+          matchesClient(job, clientId) &&
+          matchesSearch(job, search),
       ),
-    [filter, jobs, search],
+    [clientId, filter, jobs, search],
+  );
+  const clientOptions = useMemo(
+    () =>
+      [...new Map(
+        jobs
+          .map((job) => job.config?.clientSnapshot)
+          .filter(Boolean)
+          .map((client) => [client!.id, client!]),
+      ).values()],
+    [jobs],
   );
 
   async function deleteJob(jobId: string) {
@@ -71,6 +85,22 @@ export function VideoLibraryGrid({
         onSearchChange={setSearch}
         search={search}
       />
+      <label className="grid gap-2 rounded-[8px] border border-white/10 bg-white/[0.055] p-4 text-sm text-zinc-200 md:max-w-sm">
+        <span className="font-semibold text-white">Filtrar por cliente</span>
+        <select
+          className="min-h-11 rounded-[8px] border border-white/15 bg-zinc-950 px-3"
+          onChange={(event) => setClientId(event.target.value)}
+          value={clientId}
+        >
+          <option value="all">Todos</option>
+          <option value="none">Sin cliente</option>
+          {clientOptions.map((client) => (
+            <option key={client.id} value={client.id}>
+              {client.businessName}
+            </option>
+          ))}
+        </select>
+      </label>
       {error ? (
         <p className="rounded-[8px] border border-rose-200/20 bg-rose-200/10 px-4 py-3 text-sm text-rose-100">
           {error}
@@ -121,7 +151,13 @@ function matchesFilter(job: VideoEditorLibraryJob, filter: LibraryFilter) {
   }
 
   if (filter === "pending") {
-    return job.status === "uploaded" || job.status === "processing";
+    return (
+      job.status === "uploaded" ||
+      job.status === "processing" ||
+      job.status === "rendering_final" ||
+      job.status === "awaiting_copy_review" ||
+      job.status === "copy_approved"
+    );
   }
 
   return job.status === filter;
@@ -141,10 +177,24 @@ function matchesSearch(job: VideoEditorLibraryJob, search: string) {
       job.config?.templateId,
       job.hookText,
       job.ctaText,
+      job.config?.clientSnapshot?.businessName,
+      job.config?.clientSnapshot?.sector,
     ]
       .filter(Boolean)
       .join(" "),
   ).includes(query);
+}
+
+function matchesClient(job: VideoEditorLibraryJob, clientId: string) {
+  if (clientId === "all") {
+    return true;
+  }
+
+  if (clientId === "none") {
+    return !job.config?.clientId;
+  }
+
+  return job.config?.clientId === clientId;
 }
 
 function normalize(value: string) {

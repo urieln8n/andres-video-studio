@@ -63,6 +63,12 @@ export const videoEditorPipelineSteps = [
     description: "Se prepara el ASS con el transcript final.",
   },
   {
+    id: "reviewing_copy",
+    label: "Revisión de copy",
+    progress: 68,
+    description: "El hook, CTA y textos esperan aprobación antes del render.",
+  },
+  {
     id: "rendering_subtitles",
     label: "Render de subtítulos",
     progress: 78,

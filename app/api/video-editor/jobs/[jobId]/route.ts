@@ -2,6 +2,7 @@ import {
   deleteJobArtifacts,
   readJob,
 } from "@/lib/video-editor/job-store";
+import { apiError, apiOk } from "@/lib/video-editor/api-response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,10 +15,10 @@ export async function GET(
   const job = await readJob(jobId);
 
   if (!job) {
-    return Response.json({ error: "Job no encontrado." }, { status: 404 });
+    return apiError("Job no encontrado.", 404);
   }
 
-  return Response.json({ ok: true, job });
+  return apiOk({ job });
 }
 
 export async function DELETE(
@@ -28,10 +29,10 @@ export async function DELETE(
   const deleted = await deleteJobArtifacts(jobId);
 
   if (!deleted) {
-    return Response.json({ error: "Job no encontrado." }, { status: 404 });
+    return apiError("Job no encontrado.", 404);
   }
 
-  return Response.json({
+  return apiOk({
     deletedFiles: deleted.deletedFiles,
     jobId: deleted.job.id,
     message: "Job y artefactos locales borrados.",

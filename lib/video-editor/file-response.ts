@@ -1,4 +1,6 @@
-import { readFile, stat } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { stat } from "node:fs/promises";
+import { Readable } from "node:stream";
 import path from "node:path";
 
 import {
@@ -69,12 +71,17 @@ export async function createMp4Response({
   rangeHeader?: string | null;
 }) {
   const range = parseByteRange(rangeHeader, file.size);
-  const video = await readFile(file.absolutePath);
-  const body = range ? video.subarray(range.start, range.end + 1) : video;
+  const contentLength = range ? range.end - range.start + 1 : file.size;
+
+  const stream = range
+    ? createReadStream(file.absolutePath, { start: range.start, end: range.end })
+    : createReadStream(file.absolutePath);
+  const body = Readable.toWeb(stream) as ReadableStream;
+
   const headers = new Headers({
     "Accept-Ranges": "bytes",
     "Content-Disposition": `${disposition}; filename="${escapeHeaderFileName(file.fileName)}"`,
-    "Content-Length": String(body.byteLength),
+    "Content-Length": String(contentLength),
     "Content-Type": "video/mp4",
   });
 

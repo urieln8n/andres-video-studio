@@ -13,6 +13,13 @@ import path from "node:path";
 import type { VideoEditorJob } from "@/lib/video-editor/types";
 import { normalizeVideoEditorConfig } from "@/lib/video-editor/config";
 import { getTemplateById } from "@/lib/video-editor/templates";
+import { normalizeLegacyJob } from "@/lib/video-editor/legacy-job-normalizer";
+import {
+  isPathInsideRoot,
+  validateJobId,
+  videoEditorStorageRoot,
+} from "@/lib/video-editor/safe-paths";
+import { sanitizeFileName } from "@/lib/video-editor/text-sanitize";
 
 export const VIDEO_EDITOR_ALLOWED_EXTENSIONS = [
   ".mp4",
@@ -23,12 +30,14 @@ export const VIDEO_EDITOR_ALLOWED_EXTENSIONS = [
 
 export const VIDEO_EDITOR_MAX_FILE_SIZE = 250 * 1024 * 1024;
 
-const storageRoot = path.join(process.cwd(), "storage");
+const storageRoot = videoEditorStorageRoot;
 const inputRoot = path.join(storageRoot, "input");
 const jobsRoot = path.join(storageRoot, "jobs");
 const outputRoot = path.join(storageRoot, "output");
 const tempRoot = path.join(storageRoot, "temp");
 const transcriptsRoot = path.join(storageRoot, "transcripts");
+const exportsRoot = path.join(storageRoot, "exports");
+const staleProcessingLockMs = 6 * 60 * 60 * 1_000;
 
 export function isAllowedVideoFileName(fileName: string) {
   return VIDEO_EDITOR_ALLOWED_EXTENSIONS.includes(
@@ -37,16 +46,7 @@ export function isAllowedVideoFileName(fileName: string) {
 }
 
 export function sanitizeVideoFileName(fileName: string) {
-  const extension = path.extname(fileName).toLowerCase();
-  const baseName = path
-    .basename(fileName, path.extname(fileName))
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9_-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 90);
-
-  return `${baseName || "video"}${extension}`;
+  return sanitizeFileName(fileName, "video");
 }
 
 export async function ensureVideoEditorStorage() {
@@ -56,6 +56,7 @@ export async function ensureVideoEditorStorage() {
     mkdir(outputRoot, { recursive: true }),
     mkdir(tempRoot, { recursive: true }),
     mkdir(transcriptsRoot, { recursive: true }),
+    mkdir(exportsRoot, { recursive: true }),
   ]);
 }
 
@@ -77,6 +78,32 @@ export function getOutputRelativePath(jobId: string) {
 
 export function getOutputRootAbsolutePath() {
   return path.resolve(outputRoot);
+}
+
+export function getExportsRootAbsolutePath() {
+  return path.resolve(exportsRoot);
+}
+
+export function getExportPackageDirAbsolutePath(jobId: string) {
+  return path.join(exportsRoot, path.basename(jobId));
+}
+
+export function getExportPackageDirRelativePath(jobId: string) {
+  return path.posix.join("storage", "exports", jobId);
+}
+
+export function getExportPackageZipAbsolutePath(jobId: string) {
+  return path.join(
+    getExportPackageDirAbsolutePath(jobId),
+    `andres-video-studio-${jobId}.zip`,
+  );
+}
+
+export function getExportPackageZipRelativePath(jobId: string) {
+  return path.posix.join(
+    getExportPackageDirRelativePath(jobId),
+    `andres-video-studio-${jobId}.zip`,
+  );
 }
 
 export function getSubtitledOutputAbsolutePath(jobId: string) {
@@ -163,6 +190,34 @@ export function getFillerPlanRelativePath(jobId: string) {
   return path.posix.join("storage", "temp", `${jobId}_filler_plan.json`);
 }
 
+export function getCopyPackAbsolutePath(jobId: string) {
+  return path.join(tempRoot, `${jobId}_copy_pack.json`);
+}
+
+export function getCopyPackRelativePath(jobId: string) {
+  return path.posix.join("storage", "temp", `${jobId}_copy_pack.json`);
+}
+
+export function getPublishingPackAbsolutePath(jobId: string) {
+  return path.join(tempRoot, `${jobId}_publishing_pack.json`);
+}
+
+export function getPublishingPackRelativePath(jobId: string) {
+  return path.posix.join("storage", "temp", `${jobId}_publishing_pack.json`);
+}
+
+export function getQrAbsolutePath(jobId: string) {
+  return path.join(tempRoot, `${jobId}_qr.svg`);
+}
+
+export function getQrRelativePath(jobId: string) {
+  return path.posix.join("storage", "temp", `${jobId}_qr.svg`);
+}
+
+export function getQrOverlayTempAbsolutePath(jobId: string) {
+  return path.join(tempRoot, `${jobId}_qr_overlay.mp4`);
+}
+
 export function getProcessingLockAbsolutePath(jobId: string) {
   return path.join(tempRoot, `${jobId}.lock`);
 }
@@ -215,6 +270,26 @@ export function createUploadedJob(fileName: string, configValue?: unknown) {
     templateId: config.templateId,
     hookText: config.hookText ?? template.hook,
     ctaText: config.ctaText ?? template.cta,
+    finalHookText: null,
+    finalCtaText: null,
+    generatedTitle: null,
+    generatedDescription: null,
+    generatedHashtags: [],
+    copyPack: null,
+    copyPackPath: null,
+    finalCopy: null,
+    publishingPackPath: null,
+    publishingPackCreated: false,
+    publishingTitle: null,
+    publishingHashtags: [],
+    publishingProvider: null,
+    exportPackagePath: null,
+    exportPackageCreated: false,
+    exportPackageSizeBytes: null,
+    exportPackageSizeLabel: null,
+    qrPath: null,
+    qrOverlayApplied: null,
+    qrWarnings: [],
     config,
     overlayPath: null,
     finalVideoPath: null,
@@ -243,14 +318,14 @@ export async function writeJob(job: VideoEditorJob) {
   return job;
 }
 
-export async function readJob(jobId: string) {
+export async function readJob(jobId: string): Promise<VideoEditorJob | null> {
   if (!isValidVideoEditorJobId(jobId)) {
     return null;
   }
 
   try {
     const jobJson = await readFile(getJobAbsolutePath(jobId), "utf8");
-    return JSON.parse(jobJson) as VideoEditorJob;
+    return normalizeLegacyJob(JSON.parse(jobJson));
   } catch (error) {
     if (isFileMissingError(error)) {
       return null;
@@ -260,11 +335,11 @@ export async function readJob(jobId: string) {
   }
 }
 
-export async function listJobs() {
+export async function listJobs(): Promise<VideoEditorJob[]> {
   await ensureVideoEditorStorage();
 
   const entries = await readdir(jobsRoot, { withFileTypes: true });
-  const jobs = await Promise.all(
+  const jobs: Array<VideoEditorJob | null> = await Promise.all(
     entries
       .filter(
         (entry) =>
@@ -274,11 +349,11 @@ export async function listJobs() {
       )
       .map(async (entry) => {
         try {
-          const value = JSON.parse(
+          const value = normalizeLegacyJob(JSON.parse(
             await readFile(path.join(jobsRoot, entry.name), "utf8"),
-          ) as VideoEditorJob;
+          ));
 
-          return isValidVideoEditorJobId(value.id) ? value : null;
+          return value && isValidVideoEditorJobId(value.id) ? value : null;
         } catch {
           return null;
         }
@@ -286,7 +361,7 @@ export async function listJobs() {
   );
 
   return jobs
-    .filter((job): job is VideoEditorJob => Boolean(job))
+    .filter((job): job is VideoEditorJob => job !== null)
     .sort((left, right) => getJobSortTime(right) - getJobSortTime(left));
 }
 
@@ -326,6 +401,7 @@ export async function deleteJobArtifacts(jobId: string) {
     removeJobOutputFile(job.finalVideoPath, jobId),
     removePrefixedFiles(tempRoot, jobId),
     removePrefixedFiles(transcriptsRoot, jobId),
+    removeExportPackageDirectory(jobId),
   ]);
   const jobRemoved = await removeKnownFile(getJobAbsolutePath(jobId), jobsRoot);
 
@@ -356,6 +432,10 @@ export async function acquireProcessingLock(jobId: string) {
 
   await ensureVideoEditorStorage();
 
+  return createProcessingLock(jobId, true);
+}
+
+async function createProcessingLock(jobId: string, clearStaleLock: boolean) {
   try {
     const handle = await open(getProcessingLockAbsolutePath(jobId), "wx");
     await handle.writeFile(new Date().toISOString(), "utf8");
@@ -363,6 +443,11 @@ export async function acquireProcessingLock(jobId: string) {
     return true;
   } catch (error) {
     if (isFileAlreadyExistsError(error)) {
+      if (clearStaleLock && (await isProcessingLockStale(jobId))) {
+        await removeKnownFile(getProcessingLockAbsolutePath(jobId), tempRoot);
+        return createProcessingLock(jobId, false);
+      }
+
       return false;
     }
 
@@ -383,9 +468,7 @@ function getJobAbsolutePath(jobId: string) {
 }
 
 export function isValidVideoEditorJobId(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    value,
-  );
+  return validateJobId(value);
 }
 
 async function removePrefixedFiles(root: string, prefix: string): Promise<number> {
@@ -434,14 +517,41 @@ async function removeKnownFile(filePath: string, root: string): Promise<number> 
   return 1;
 }
 
-function isInsideRoot(root: string, candidate: string) {
-  const relative = path.relative(root, candidate);
+async function removeExportPackageDirectory(jobId: string): Promise<number> {
+  const exportDir = getExportPackageDirAbsolutePath(jobId);
+  const absoluteExportsRoot = path.resolve(exportsRoot);
+  const absoluteExportDir = path.resolve(exportDir);
 
-  return (
-    relative.length > 0 &&
-    !relative.startsWith("..") &&
-    !path.isAbsolute(relative)
-  );
+  if (!isInsideRoot(absoluteExportsRoot, absoluteExportDir)) {
+    return 0;
+  }
+
+  try {
+    const entries = await readdir(absoluteExportDir, { withFileTypes: true });
+
+    await rm(absoluteExportDir, { force: true, recursive: true });
+    return entries.filter((entry) => entry.isFile()).length;
+  } catch (error) {
+    if (isFileMissingError(error)) {
+      return 0;
+    }
+
+    throw error;
+  }
+}
+
+function isInsideRoot(root: string, candidate: string) {
+  return isPathInsideRoot(root, candidate);
+}
+
+async function isProcessingLockStale(jobId: string) {
+  try {
+    const lockStat = await stat(getProcessingLockAbsolutePath(jobId));
+
+    return Date.now() - lockStat.mtimeMs > staleProcessingLockMs;
+  } catch (error) {
+    return isFileMissingError(error);
+  }
 }
 
 function getJobSortTime(job: VideoEditorJob) {

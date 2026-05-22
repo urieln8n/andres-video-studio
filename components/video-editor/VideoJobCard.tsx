@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 
 import { getCommercialPresetById, isValidCommercialPreset } from "@/lib/video-editor/commercial-presets";
 import { normalizeVideoEditorConfig } from "@/lib/video-editor/config";
@@ -11,15 +12,18 @@ import {
 import { getPlatformPresetById } from "@/lib/video-editor/platform-presets";
 import { getTemplateById } from "@/lib/video-editor/templates";
 import type { VideoEditorLibraryJob } from "@/lib/video-editor/types";
+import { ClientBadge } from "@/components/video-editor/ClientBadge";
 
 export function VideoJobCard({
   deleting,
   job,
   onDelete,
+  showDelete = true,
 }: {
   deleting: boolean;
   job: VideoEditorLibraryJob;
   onDelete: (jobId: string) => void;
+  showDelete?: boolean;
 }) {
   const config = normalizeVideoEditorConfig(job.config ?? {
     templateId: job.templateId,
@@ -32,14 +36,69 @@ export function VideoJobCard({
     : "Personalizado";
   const canProcess = job.status === "uploaded" || job.status === "failed";
   const canDownload = job.status === "completed" && job.hasFinalVideo;
+  const canReview =
+    job.status === "awaiting_copy_review" || job.status === "copy_approved";
+  const [exportCreated, setExportCreated] = useState(
+    job.exportPackageCreated === true,
+  );
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  async function generateExportPackage() {
+    setExportBusy(true);
+    setExportError(null);
+
+    try {
+      const response = await fetch(
+        `/api/video-editor/jobs/${encodeURIComponent(job.id)}/export-package`,
+        { method: "POST" },
+      );
+      const payload = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error || "No se pudo generar el pack ZIP.");
+      }
+
+      setExportCreated(true);
+    } catch (error) {
+      setExportError(
+        error instanceof Error ? error.message : "No se pudo generar el pack ZIP.",
+      );
+    } finally {
+      setExportBusy(false);
+    }
+  }
 
   return (
     <article className="flex min-h-[31rem] flex-col rounded-[8px] border border-white/10 bg-white/[0.065] p-5 shadow-[0_32px_110px_-74px_rgba(0,0,0,1)] backdrop-blur-xl">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-medium uppercase text-[#d6b26e]">
-            {template.name}
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs font-medium uppercase text-[#d6b26e]">
+              {template.name}
+            </p>
+            {config.mode === "barberiaos" ? (
+              <span className="rounded-[8px] border border-[#efd8ad]/22 bg-[#d6b26e]/12 px-2 py-0.5 text-[10px] font-semibold uppercase text-[#efd8ad]">
+                BarberíaOS
+              </span>
+            ) : null}
+            {config.mode === "barberiaos" && config.barberiaos.bookingUrl ? (
+              <span className="rounded-[8px] border border-emerald-200/20 bg-emerald-200/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-emerald-100">
+                QR
+              </span>
+            ) : null}
+            {job.publishingPackCreated ? (
+              <span className="rounded-[8px] border border-amber-100/20 bg-amber-100/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-100">
+                Pack
+              </span>
+            ) : null}
+            {exportCreated ? (
+              <span className="rounded-[8px] border border-emerald-100/20 bg-emerald-100/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-emerald-100">
+                Pack ZIP
+              </span>
+            ) : null}
+            <ClientBadge client={config.clientSnapshot} />
+          </div>
           <h2 className="mt-2 break-words text-xl font-semibold text-white">
             {job.originalFileName}
           </h2>
@@ -49,6 +108,20 @@ export function VideoJobCard({
 
       <dl className="mt-5 grid gap-2 text-sm">
         <Meta label="Preset" value={commercialPresetLabel} />
+        {config.mode === "barberiaos" ? (
+          <Meta
+            label="Barbería"
+            value={config.barberiaos.barbershopName || "Tu barbería"}
+          />
+        ) : null}
+        <Meta
+          label="Cliente"
+          value={config.clientSnapshot?.businessName || "Sin cliente"}
+        />
+        <Meta
+          label="Sector"
+          value={config.clientSnapshot?.sector || "Sin cliente"}
+        />
         <Meta label="Creado" value={formatDate(job.createdAt)} />
         <Meta
           label="Plataforma"
@@ -71,12 +144,14 @@ export function VideoJobCard({
       <div className="mt-4 rounded-[8px] border border-white/[0.08] bg-black/20 p-3 text-sm text-zinc-300">
         {job.hasFinalVideo
           ? "Vídeo final disponible para preview y descarga."
-          : job.status === "processing"
+          : job.status === "processing" || job.status === "rendering_final"
             ? `Procesando: ${job.progress}% · ${job.currentStepLabel || job.currentStep}`
+            : canReview
+              ? "El copy espera revisión antes del render final."
             : job.status === "failed" && job.errorMessage
               ? job.errorMessage
               : "Todavía no hay un MP4 final disponible."}
-        {job.status === "processing" ? (
+        {job.status === "processing" || job.status === "rendering_final" ? (
           <div className="mt-2 h-1.5 overflow-hidden rounded-full border border-white/10 bg-black/35">
             <div
               className="h-full rounded-full bg-[linear-gradient(90deg,#8f6736,#efd8ad,#c68a3d)] transition-all duration-500"
@@ -85,6 +160,11 @@ export function VideoJobCard({
           </div>
         ) : null}
       </div>
+      {exportError ? (
+        <p className="mt-3 rounded-[8px] border border-rose-200/20 bg-rose-200/10 px-3 py-2 text-sm text-rose-100">
+          {exportError}
+        </p>
+      ) : null}
 
       <div className="mt-auto grid gap-2 pt-5 sm:grid-cols-2">
         <Link
@@ -93,7 +173,7 @@ export function VideoJobCard({
         >
           Ver resultado
         </Link>
-        {job.status === "processing" ? (
+        {job.status === "processing" || job.status === "rendering_final" ? (
           <Link
             href={`/video-editor/processing?jobId=${encodeURIComponent(job.id)}`}
             className="inline-flex min-h-11 items-center justify-center rounded-[8px] border border-white/12 bg-white/[0.08] px-3 text-sm font-semibold text-white transition hover:bg-white/[0.13]"
@@ -109,6 +189,14 @@ export function VideoJobCard({
             {job.status === "failed" ? "Reintentar" : "Procesar"}
           </Link>
         ) : null}
+        {canReview ? (
+          <Link
+            href={`/video-editor/copy?jobId=${encodeURIComponent(job.id)}`}
+            className="inline-flex min-h-11 items-center justify-center rounded-[8px] border border-white/12 bg-white/[0.08] px-3 text-sm font-semibold text-white transition hover:bg-white/[0.13]"
+          >
+            Revisar copy
+          </Link>
+        ) : null}
         {canDownload ? (
           <a
             href={`/api/video-editor/jobs/${encodeURIComponent(job.id)}/download`}
@@ -117,14 +205,50 @@ export function VideoJobCard({
             Descargar
           </a>
         ) : null}
-        <button
-          className="inline-flex min-h-11 items-center justify-center rounded-[8px] border border-rose-200/15 bg-rose-200/[0.08] px-3 text-sm font-semibold text-rose-100 transition hover:bg-rose-200/[0.14] disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={deleting}
-          onClick={() => onDelete(job.id)}
-          type="button"
-        >
-          {deleting ? "Borrando..." : "Borrar"}
-        </button>
+        {canDownload && job.publishingPackCreated ? (
+          <Link
+            href={`/video-editor/result?jobId=${encodeURIComponent(job.id)}`}
+            className="inline-flex min-h-11 items-center justify-center rounded-[8px] border border-[#efd8ad]/25 bg-[#d6b26e]/12 px-3 text-sm font-semibold text-[#efd8ad] transition hover:bg-[#d6b26e]/22"
+          >
+            Ver pack
+          </Link>
+        ) : null}
+        {canDownload && exportCreated ? (
+          <a
+            href={`/api/video-editor/jobs/${encodeURIComponent(job.id)}/export-package/download`}
+            className="inline-flex min-h-11 items-center justify-center rounded-[8px] border border-emerald-200/20 bg-emerald-200/10 px-3 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-200/15"
+          >
+            Descargar pack
+          </a>
+        ) : null}
+        {canDownload && !exportCreated ? (
+          <button
+            className="inline-flex min-h-11 items-center justify-center rounded-[8px] border border-[#efd8ad]/25 bg-[#d6b26e]/12 px-3 text-sm font-semibold text-[#efd8ad] transition hover:bg-[#d6b26e]/22 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={exportBusy}
+            onClick={generateExportPackage}
+            type="button"
+          >
+            {exportBusy ? "Generando..." : "Generar pack"}
+          </button>
+        ) : null}
+        {config.clientId ? (
+          <Link
+            className="inline-flex min-h-11 items-center justify-center rounded-[8px] border border-white/12 bg-white/[0.08] px-3 text-sm font-semibold text-white"
+            href={`/video-editor/clients/${encodeURIComponent(config.clientId)}`}
+          >
+            Ver cliente
+          </Link>
+        ) : null}
+        {showDelete ? (
+          <button
+            className="inline-flex min-h-11 items-center justify-center rounded-[8px] border border-rose-200/15 bg-rose-200/[0.08] px-3 text-sm font-semibold text-rose-100 transition hover:bg-rose-200/[0.14] disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={deleting}
+            onClick={() => onDelete(job.id)}
+            type="button"
+          >
+            {deleting ? "Borrando..." : "Borrar"}
+          </button>
+        ) : null}
       </div>
     </article>
   );
@@ -144,6 +268,9 @@ function StatusBadge({ status }: { status: VideoEditorLibraryJob["status"] }) {
     completed: "border-emerald-200/20 bg-emerald-200/10 text-emerald-100",
     failed: "border-rose-200/20 bg-rose-200/10 text-rose-100",
     processing: "border-[#efd8ad]/25 bg-[#d6b26e]/12 text-[#efd8ad]",
+    rendering_final: "border-[#efd8ad]/25 bg-[#d6b26e]/12 text-[#efd8ad]",
+    awaiting_copy_review: "border-fuchsia-200/20 bg-fuchsia-200/10 text-fuchsia-100",
+    copy_approved: "border-cyan-200/20 bg-cyan-200/10 text-cyan-100",
     uploaded: "border-sky-200/20 bg-sky-200/10 text-sky-100",
   };
 

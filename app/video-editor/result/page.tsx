@@ -4,6 +4,9 @@ import path from "node:path";
 import { ResultActions } from "@/components/video-editor/ResultActions";
 import { ResultVideoPreview } from "@/components/video-editor/ResultVideoPreview";
 import { VideoDetailsCard } from "@/components/video-editor/VideoDetailsCard";
+import { QrPreviewCard } from "@/components/video-editor/QrPreviewCard";
+import { PublishingPackCard } from "@/components/video-editor/PublishingPackCard";
+import { ExportPackageCard } from "@/components/video-editor/ExportPackageCard";
 import type { VideoDetail } from "@/lib/video-editor/mock-data";
 import {
   fileHasContent,
@@ -22,6 +25,7 @@ import {
   getOutputFormatProfile,
 } from "@/lib/video-editor/export-profiles";
 import { getPlatformPresetById } from "@/lib/video-editor/platform-presets";
+import { loadPublishingPack } from "@/lib/video-editor/publishing-pack-engine";
 
 type VideoResultPageProps = {
   searchParams: Promise<{ jobId?: string | string[] }>;
@@ -55,6 +59,7 @@ export default async function VideoResultPage({
   }
 
   const finalVideo = await resolveFinalVideoFile(job);
+  const publishingPack = await loadPublishingPack(job.id);
   const outputAvailable = Boolean(finalVideo);
   const subtitlesAvailable = Boolean(
     job.subtitlesPath && (await fileHasContent(getSubtitleAbsolutePath(job.id))),
@@ -80,6 +85,17 @@ export default async function VideoResultPage({
   const commercialPresetLabel = isValidCommercialPreset(config.commercialPreset)
     ? getCommercialPresetById(config.commercialPreset).label
     : "Personalizado";
+  const finalHook =
+    job.finalCopy?.selectedHook || job.finalHookText || job.hookText || "Pendiente";
+  const finalCta =
+    job.finalCopy?.selectedCta || job.finalCtaText || job.ctaText || "Pendiente";
+  const qrStatus =
+    !config.barberiaos.bookingUrl
+      ? "QR simulado"
+      : job.qrOverlayApplied
+        ? "QR aplicado"
+        : "Solo CTA textual";
+  const clientSnapshot = config.clientSnapshot;
 
   const details: VideoDetail[] = [
     { label: "Job ID", value: job.id },
@@ -152,8 +168,36 @@ export default async function VideoResultPage({
     },
     { label: "Plantilla usada", value: template.name },
     { label: "Estilo de subtítulos", value: config.subtitleStyle },
-    { label: "Hook usado", value: job.hookText || "Pendiente" },
-    { label: "CTA usado", value: job.ctaText || "Pendiente" },
+    {
+      label: "Hook final usado",
+      value: finalHook,
+    },
+    {
+      label: "CTA final usado",
+      value: finalCta,
+    },
+    {
+      label: "Titulo final",
+      value: job.finalCopy?.title || job.generatedTitle || "Pendiente",
+    },
+    {
+      label: "Descripcion final",
+      value: job.finalCopy?.description || job.generatedDescription || "Sin descripcion",
+    },
+    {
+      label: "Hashtags finales",
+      value:
+        job.finalCopy?.hashtags.join(" ") ||
+        job.generatedHashtags?.join(" ") ||
+        "Sin hashtags",
+    },
+    {
+      label: "Origen del copy",
+      value:
+        job.finalCopy?.source === "edited"
+          ? "Copy editado manualmente"
+          : "Copy automatico",
+    },
     {
       label: "Recorte de silencios",
       value: formatToggle(config.trimSilences),
@@ -221,6 +265,134 @@ export default async function VideoResultPage({
             </div>
           </div>
 
+          {config.mode === "barberiaos" ? (
+            <section className="rounded-[8px] border border-[#efd8ad]/20 bg-[linear-gradient(135deg,rgba(214,178,110,0.13),rgba(255,255,255,0.05))] p-6 shadow-[0_28px_100px_-68px_rgba(0,0,0,1)] backdrop-blur-xl">
+              <p className="text-xs font-semibold uppercase text-[#efd8ad]">
+                Vídeo creado para BarberíaOS Content Studio
+              </p>
+              <h2 className="mt-3 text-2xl font-semibold text-white">
+                {commercialPresetLabel}
+              </h2>
+              <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+                <BarberiaResultLine label="Hook final" value={finalHook} />
+                <BarberiaResultLine label="CTA final" value={finalCta} />
+                <BarberiaResultLine label="Plataforma" value={presetLabel} />
+                <BarberiaResultLine
+                  label="Caso de uso comercial"
+                  value={commercialPresetLabel}
+                />
+              </dl>
+              <p className="mt-5 rounded-[8px] border border-white/10 bg-black/22 px-4 py-3 text-sm leading-6 text-zinc-200">
+                Publícalo en Instagram Reels, TikTok o WhatsApp y añade tu
+                link/QR de reservas.
+              </p>
+              {outputAvailable ? (
+                <a
+                  className="mt-5 inline-flex min-h-12 items-center justify-center rounded-[8px] border border-[#efd8ad]/32 bg-[linear-gradient(135deg,#efd8ad,#bb863e)] px-5 text-sm font-semibold text-zinc-950 transition hover:brightness-110"
+                  href={`/api/video-editor/jobs/${encodeURIComponent(job.id)}/download`}
+                >
+                  Descargar vídeo
+                </a>
+              ) : null}
+            </section>
+          ) : null}
+
+          {clientSnapshot ? (
+            <section className="rounded-[8px] border border-white/10 bg-white/[0.06] p-6 shadow-[0_28px_100px_-68px_rgba(0,0,0,1)] backdrop-blur-xl">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase text-[#efd8ad]">
+                    Cliente asociado
+                  </p>
+                  <h2 className="mt-3 text-2xl font-semibold text-white">
+                    {clientSnapshot.businessName}
+                  </h2>
+                  <p className="mt-2 text-sm uppercase text-zinc-400">
+                    {clientSnapshot.sector}
+                  </p>
+                </div>
+                <span
+                  className="size-14 rounded-[8px] border border-white/15"
+                  style={{ backgroundColor: clientSnapshot.brandColor ?? "#d6b26e" }}
+                />
+              </div>
+              <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+                <BarberiaResultLine label="Web" value={clientSnapshot.website || "Sin web"} />
+                <BarberiaResultLine label="Instagram" value={clientSnapshot.instagram || "Sin Instagram"} />
+                <BarberiaResultLine label="Booking URL" value={clientSnapshot.bookingUrl || "Sin link"} />
+              </dl>
+              <Link
+                className="mt-5 inline-flex min-h-11 items-center justify-center rounded-[8px] border border-[#efd8ad]/25 bg-[#d6b26e]/12 px-4 text-sm font-semibold text-[#efd8ad]"
+                href={`/video-editor/clients/${encodeURIComponent(clientSnapshot.id)}`}
+              >
+                Ver cliente
+              </Link>
+            </section>
+          ) : null}
+
+          {config.mode === "barberiaos" ? (
+            <section className="grid gap-5 rounded-[8px] border border-white/10 bg-white/[0.06] p-6 shadow-[0_28px_100px_-68px_rgba(0,0,0,1)] backdrop-blur-xl md:grid-cols-[minmax(0,1fr)_minmax(250px,0.62fr)]">
+              <div>
+                <p className="text-xs font-semibold uppercase text-[#efd8ad]">
+                  Reserva por QR
+                </p>
+                <h2 className="mt-3 text-2xl font-semibold text-white">
+                  {config.barberiaos.barbershopName || "Tu barbería"}
+                </h2>
+                <dl className="mt-5 grid gap-3 text-sm">
+                  <BarberiaResultLine
+                    label="Link de reserva"
+                    value={config.barberiaos.bookingUrl || "Sin link real todavía"}
+                  />
+                  <BarberiaResultLine
+                    label="CTA QR"
+                    value={config.barberiaos.qrCtaText}
+                  />
+                  <BarberiaResultLine label="Estado QR" value={qrStatus} />
+                  <BarberiaResultLine
+                    label="Ruta QR local"
+                    value={job.qrPath || "No generado"}
+                  />
+                </dl>
+                <p className="mt-5 rounded-[8px] border border-white/10 bg-black/20 px-4 py-3 text-sm leading-6 text-zinc-200">
+                  Publica este vídeo y acompáñalo con tu link de reserva en la
+                  bio, WhatsApp o Google Business Profile.
+                </p>
+              </div>
+              {job.qrPath || !config.barberiaos.bookingUrl ? (
+                <QrPreviewCard barberiaos={config.barberiaos} />
+              ) : (
+                <p className="rounded-[8px] border border-white/10 bg-black/20 px-4 py-4 text-sm leading-6 text-zinc-300">
+                  El QR se preparará al renderizar con un link válido.
+                </p>
+              )}
+            </section>
+          ) : null}
+
+          {publishingPack ? (
+            <PublishingPackCard pack={publishingPack} />
+          ) : (
+            <section className="rounded-[8px] border border-white/10 bg-white/[0.06] p-6 shadow-[0_28px_100px_-68px_rgba(0,0,0,1)] backdrop-blur-xl">
+              <p className="text-xs font-semibold uppercase text-[#efd8ad]">
+                Pack listo para publicar
+              </p>
+              <h2 className="mt-3 text-2xl font-semibold text-white">
+                El paquete de publicación aún no está disponible.
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-zinc-300">
+                Los jobs nuevos lo generan al terminar el render final. Este
+                resultado conserva el vídeo, preview, descarga y copy existente.
+              </p>
+            </section>
+          )}
+
+          <ExportPackageCard
+            created={job.exportPackageCreated === true}
+            jobId={job.id}
+            outputAvailable={outputAvailable}
+            sizeLabel={job.exportPackageSizeLabel ?? null}
+          />
+
           <VideoDetailsCard details={details} />
         </div>
       </section>
@@ -238,4 +410,19 @@ function formatSeconds(value: number | null | undefined) {
 
 function formatToggle(value: boolean) {
   return value ? "Activo" : "Inactivo";
+}
+
+function BarberiaResultLine({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-[8px] border border-white/[0.08] bg-black/20 px-4 py-3">
+      <dt className="text-zinc-500">{label}</dt>
+      <dd className="mt-2 break-words font-medium text-zinc-100">{value}</dd>
+    </div>
+  );
 }

@@ -1,6 +1,11 @@
+import type { VideoEditorClientSnapshot } from "@/lib/video-editor/client-types";
+
 export type VideoEditorJobStatus =
   | "uploaded"
   | "processing"
+  | "awaiting_copy_review"
+  | "copy_approved"
+  | "rendering_final"
   | "completed"
   | "failed";
 
@@ -14,6 +19,7 @@ export type VideoEditorPipelineStepId =
   | "detecting_fillers"
   | "cleaning_fillers"
   | "generating_subtitles"
+  | "reviewing_copy"
   | "rendering_subtitles"
   | "applying_hook_cta"
   | "applying_motion"
@@ -117,9 +123,26 @@ export type VideoEditorSubtitleStyle = "premium" | "viral" | "minimal";
 
 export type VideoEditorTextMode = "auto" | "custom";
 
+export type VideoEditorMode = "standard" | "barberiaos";
+
+export type VideoEditorBarberiaOSQrPosition =
+  | "bottom_right"
+  | "bottom_center"
+  | "end_screen";
+
+export type VideoEditorBarberiaOSConfig = {
+  bookingUrl: string | null;
+  barbershopName: string | null;
+  showQrOverlay: boolean;
+  qrCtaText: string;
+  qrPosition: VideoEditorBarberiaOSQrPosition;
+};
+
 export type VideoEditorMotionMode = "auto" | "fallback";
 
 export type VideoEditorExportQuality = "draft" | "standard" | "premium";
+
+export type VideoEditorCopyPreviewStage = "hook" | "subtitle" | "cta";
 
 export type VideoEditorPlatformPresetId =
   | "tiktok"
@@ -140,6 +163,12 @@ export type VideoEditorSafeZone = {
 export type VideoEditorCommercialPresetId =
   | "barberia_reels"
   | "barberia_promo"
+  | "barberia_huecos_libres"
+  | "barberia_antes_despues"
+  | "barberia_qr_reservas"
+  | "barberia_combo_corte_barba"
+  | "barberia_reactivar_clientes"
+  | "barberia_pedir_resenas"
   | "negocio_local_vitrina"
   | "negocio_local_testimonio"
   | "agencia_ia_demo"
@@ -151,6 +180,10 @@ export type VideoEditorCommercialPresetId =
   | "custom";
 
 export type VideoEditorConfig = {
+  clientId: string | null;
+  clientSnapshot: VideoEditorClientSnapshot | null;
+  mode: VideoEditorMode;
+  barberiaos: VideoEditorBarberiaOSConfig;
   commercialPreset: VideoEditorCommercialPresetId;
   platformPreset: VideoEditorPlatformPresetId;
   templateId: VideoEditorCommercialTemplate["id"];
@@ -165,6 +198,59 @@ export type VideoEditorConfig = {
   removeFillers: boolean;
   motionEnabled: boolean;
   motionMode: VideoEditorMotionMode;
+  copyReviewEnabled: boolean;
+};
+
+export type VideoEditorCopyPack = {
+  hooks: string[];
+  ctas: string[];
+  title: string;
+  description: string;
+  hashtags: string[];
+  summary?: string | null;
+};
+
+export type VideoEditorFinalCopy = {
+  selectedHook: string;
+  selectedCta: string;
+  title: string;
+  description: string;
+  hashtags: string[];
+  source: "generated" | "edited";
+  approvedAt: string;
+};
+
+export type VideoEditorPublishingPack = {
+  id: string;
+  jobId: string;
+  provider: "local_rules" | "ai" | "manual";
+  title: string;
+  instagramCaption: string;
+  tiktokCaption: string;
+  youtubeShortsDescription: string;
+  whatsappText: string;
+  instagramStoryText: string;
+  hashtags: string[];
+  postingChecklist: string[];
+  platformTips: string[];
+  barberiaosTips?: string[];
+  createdAt: string;
+};
+
+export type VideoEditorExportPackageFile = {
+  name: string;
+  path: string;
+  type: "video" | "text" | "json";
+};
+
+export type VideoEditorExportPackage = {
+  jobId: string;
+  exportDir: string;
+  zipPath: string;
+  files: VideoEditorExportPackageFile[];
+  createdAt: string;
+  sizeBytes: number;
+  sizeLabel: string;
 };
 
 export type VideoEditorJobMetrics = {
@@ -204,6 +290,26 @@ export type VideoEditorJob = {
   templateId?: VideoEditorCommercialTemplate["id"] | null;
   hookText?: string | null;
   ctaText?: string | null;
+  finalHookText?: string | null;
+  finalCtaText?: string | null;
+  generatedTitle?: string | null;
+  generatedDescription?: string | null;
+  generatedHashtags?: string[];
+  copyPack?: VideoEditorCopyPack | null;
+  copyPackPath?: string | null;
+  finalCopy?: VideoEditorFinalCopy | null;
+  publishingPackPath?: string | null;
+  publishingPackCreated?: boolean;
+  publishingTitle?: string | null;
+  publishingHashtags?: string[];
+  publishingProvider?: VideoEditorPublishingPack["provider"] | null;
+  exportPackagePath?: string | null;
+  exportPackageCreated?: boolean;
+  exportPackageSizeBytes?: number | null;
+  exportPackageSizeLabel?: string | null;
+  qrPath?: string | null;
+  qrOverlayApplied?: boolean | null;
+  qrWarnings?: string[];
   config?: VideoEditorConfig;
   overlayPath?: string | null;
   finalVideoPath?: string | null;

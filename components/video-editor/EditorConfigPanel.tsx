@@ -1,21 +1,27 @@
 "use client";
 
 import { CommercialPresetSelector } from "@/components/video-editor/CommercialPresetSelector";
+import { BarberiaOSQrPanel } from "@/components/video-editor/BarberiaOSQrPanel";
 import { ExportQualitySelector } from "@/components/video-editor/ExportQualitySelector";
 import { FormatSelector } from "@/components/video-editor/FormatSelector";
 import { PlatformPresetSelector } from "@/components/video-editor/PlatformPresetSelector";
 import { SubtitleStyleSelector } from "@/components/video-editor/SubtitleStyleSelector";
 import { TemplateSelector } from "@/components/video-editor/TemplateSelector";
 import { ToggleOption } from "@/components/video-editor/ToggleOption";
+import { ClientSelector } from "@/components/video-editor/ClientSelector";
+import { createClientSnapshot } from "@/lib/video-editor/client-utils";
+import type { VideoEditorClient } from "@/lib/video-editor/client-types";
 import type { VideoEditorCommercialPreset } from "@/lib/video-editor/commercial-presets";
 import type { VideoEditorConfig } from "@/lib/video-editor/types";
 import type { VideoEditorPlatformPreset } from "@/lib/video-editor/platform-presets";
 
 export function EditorConfigPanel({
   config,
+  clients,
   onChange,
 }: {
   config: VideoEditorConfig;
+  clients: VideoEditorClient[];
   onChange: (config: VideoEditorConfig) => void;
 }) {
   function update(value: Partial<VideoEditorConfig>) {
@@ -58,6 +64,27 @@ export function EditorConfigPanel({
     onChange({ ...config, ...value, platformPreset: "custom" });
   }
 
+  function selectClient(client: VideoEditorClient | null) {
+    const snapshot = client ? createClientSnapshot(client) : null;
+
+    onChange({
+      ...config,
+      clientId: client?.id ?? null,
+      clientSnapshot: snapshot,
+      ...(client?.sector === "barberia"
+        ? {
+            mode: "barberiaos",
+            templateId: "barberia",
+            barberiaos: {
+              ...config.barberiaos,
+              bookingUrl: client.bookingUrl ?? config.barberiaos.bookingUrl,
+              barbershopName: client.businessName,
+            },
+          }
+        : {}),
+    });
+  }
+
   return (
     <section className="rounded-[8px] border border-white/10 bg-white/[0.06] p-5 shadow-[0_32px_120px_-72px_rgba(0,0,0,1)] backdrop-blur-xl sm:p-6">
       <div className="mb-6 flex items-start gap-4">
@@ -73,6 +100,20 @@ export function EditorConfigPanel({
       </div>
 
       <div className="flex flex-col gap-6">
+        <ClientSelector
+          clients={clients}
+          onSelect={selectClient}
+          value={config.clientId}
+        />
+
+        {config.mode === "barberiaos" ? (
+          <BarberiaOSQrPanel
+            barberiaos={config.barberiaos}
+            onChange={(barberiaos) => update({ barberiaos })}
+            showOverlayControls
+          />
+        ) : null}
+
         <CommercialPresetSelector
           onSelect={applyCommercialPreset}
           value={config.commercialPreset}
@@ -122,7 +163,7 @@ export function EditorConfigPanel({
           />
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <ToggleOption
             checked={config.trimSilences}
             description="Recorta pausas largas detectadas localmente."
@@ -140,6 +181,12 @@ export function EditorConfigPanel({
             description="Intenta motion premium y conserva fallback."
             label="Motion graphics"
             onChange={(motionEnabled) => update({ motionEnabled })}
+          />
+          <ToggleOption
+            checked={config.copyReviewEnabled}
+            description="Aprueba hook, CTA y copy antes del render final."
+            label="Revisar copy antes de renderizar"
+            onChange={(copyReviewEnabled) => update({ copyReviewEnabled })}
           />
           <label className="rounded-[8px] border border-white/10 bg-black/20 p-4">
             <span className="block text-sm font-semibold text-white">

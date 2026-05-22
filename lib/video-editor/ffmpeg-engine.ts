@@ -19,6 +19,9 @@ import {
   updateJob,
 } from "@/lib/video-editor/job-store";
 import { selectCommercialTemplate } from "@/lib/video-editor/commercial-template-engine";
+import { prepareCopyPack } from "@/lib/video-editor/copy-review";
+import { createLocalQrVisual } from "@/lib/video-editor/qr-engine";
+import { renderBarberiaOSQrCtaOverlay } from "@/lib/video-editor/qr-overlay-engine";
 import {
   getEncodingParams,
   getOutputDimensions,
@@ -39,6 +42,7 @@ import {
   writeFillerPlan,
 } from "@/lib/video-editor/filler-detector";
 import { prepareMotionOverlays } from "@/lib/video-editor/motion-engine";
+import { createAndSavePublishingPack } from "@/lib/video-editor/publishing-pack-engine";
 import {
   composeMotionOverlayVideos,
   renderCommercialOverlays,
@@ -67,15 +71,19 @@ import type {
 const ffmpegCommand = "ffmpeg";
 const maxErrorOutputLength = 8_000;
 const activeProcesses = new Map<string, Promise<VideoEditorJob | null>>();
+export type VideoEditorProcessMode = "full" | "prepare_copy";
 
-export function processVideoEditorJob(jobId: string) {
+export function processVideoEditorJob(
+  jobId: string,
+  mode: VideoEditorProcessMode = "full",
+) {
   const activeProcess = activeProcesses.get(jobId);
 
   if (activeProcess) {
     return activeProcess;
   }
 
-  const nextProcess = runVideoEditorJob(jobId).finally(() => {
+  const nextProcess = runVideoEditorJob(jobId, mode).finally(() => {
     activeProcesses.delete(jobId);
   });
 
@@ -83,7 +91,7 @@ export function processVideoEditorJob(jobId: string) {
   return nextProcess;
 }
 
-async function runVideoEditorJob(jobId: string) {
+async function runVideoEditorJob(jobId: string, mode: VideoEditorProcessMode) {
   const job = await readJob(jobId);
 
   if (!job) {
@@ -137,10 +145,22 @@ async function runVideoEditorJob(jobId: string) {
           ctaText: currentJob.ctaText,
           overlayPath: null,
           finalVideoPath: null,
+          publishingPackPath: null,
+          publishingPackCreated: false,
+          publishingTitle: null,
+          publishingHashtags: [],
+          publishingProvider: null,
+          exportPackagePath: null,
+          exportPackageCreated: false,
+          exportPackageSizeBytes: null,
+          exportPackageSizeLabel: null,
           motionEngine: null,
           hookOverlayPath: null,
           ctaOverlayPath: null,
           motionWarnings: [],
+          qrPath: null,
+          qrOverlayApplied: null,
+          qrWarnings: [],
           cleanVideoPath: null,
           originalDuration: null,
           finalEstimatedDuration: null,
@@ -377,6 +397,30 @@ async function runVideoEditorJob(jobId: string) {
     await extractAudioWav(fillerSourceAbsolutePath, audioAbsolutePath);
     await tryTranscription(job.id, audioAbsolutePath, "final");
 
+    if (mode === "prepare_copy") {
+      const preparedJob = await readJob(job.id);
+
+      if (!preparedJob) {
+        throw new Error("El job desapareció antes de preparar el copy.");
+      }
+
+      await prepareCopyPack(preparedJob);
+
+      return await updateJob(job.id, (currentJob) =>
+        appendJobLog(
+          {
+            ...currentJob,
+            status: "awaiting_copy_review",
+            progress: 68,
+            currentStep: "reviewing_copy",
+            currentStepLabel: "Copy listo para revisar",
+            errorMessage: undefined,
+          },
+          "Copy pack preparado. Esperando revisión antes del render final.",
+        ),
+      );
+    }
+
     const formatProfile = getOutputFormatProfile(config.outputFormat);
     const qualityProfile = getExportQualityProfile(config.exportQuality);
 
@@ -528,6 +572,29 @@ async function runVideoEditorJob(jobId: string) {
     let hookOverlayPath: string | null = null;
     let ctaOverlayPath: string | null = null;
     const motionWarnings: string[] = [];
+    const qrWarnings: string[] = [];
+    let qrPath: string | null = null;
+    let qrOverlayApplied: boolean | null = null;
+
+    if (config.mode === "barberiaos" && config.barberiaos.bookingUrl) {
+      try {
+        const qr = await createLocalQrVisual(job.id, config.barberiaos.bookingUrl);
+        qrPath = qr.relativePath;
+        await updateJob(job.id, (currentJob) =>
+          appendJobLog({ ...currentJob, qrPath }, "QR visual local preparado"),
+        );
+      } catch (error) {
+        const warning =
+          error instanceof Error
+            ? `No se pudo preparar el QR visual. ${error.message}`
+            : "No se pudo preparar el QR visual.";
+
+        qrWarnings.push(warning);
+        await updateJob(job.id, (currentJob) =>
+          appendJobLog(currentJob, `Warning: ${warning}`),
+        );
+      }
+    }
 
     await updateJob(job.id, (currentJob) =>
       appendJobLog(
@@ -657,6 +724,40 @@ async function runVideoEditorJob(jobId: string) {
       throw new Error("El render terminó pero no se encontró el archivo final");
     }
 
+    if (config.mode === "barberiaos" && config.barberiaos.showQrOverlay) {
+      try {
+        const qrOverlay = await renderBarberiaOSQrCtaOverlay({
+          duration: commercialDuration,
+          inputAbsolutePath: outputAbsolutePath,
+          job: commercialJob,
+          outputAbsolutePath,
+        });
+
+        qrOverlayApplied = qrOverlay.applied;
+        qrWarnings.push(...qrOverlay.warnings);
+
+        await updateJob(job.id, (currentJob) =>
+          appendJobLog(
+            currentJob,
+            qrOverlay.warnings.length
+              ? `Warning: ${qrOverlay.warnings.join(" ")}`
+              : "Overlay QR completado",
+          ),
+        );
+      } catch (error) {
+        const warning =
+          error instanceof Error
+            ? `Overlay QR omitido. ${error.message}`
+            : "Overlay QR omitido.";
+
+        qrOverlayApplied = false;
+        qrWarnings.push(warning);
+        await updateJob(job.id, (currentJob) =>
+          appendJobLog(currentJob, `Warning: ${warning}`),
+        );
+      }
+    }
+
     await setJobProgress(job.id, 97, "exporting");
 
     let finalFileSizeBytes: number | null = null;
@@ -687,6 +788,9 @@ async function runVideoEditorJob(jobId: string) {
           hookOverlayPath,
           ctaOverlayPath,
           motionWarnings,
+          qrPath,
+          qrOverlayApplied,
+          qrWarnings,
           progress: 97,
           currentStep: "exporting",
           currentStepLabel: "Exportación",
@@ -699,6 +803,16 @@ async function runVideoEditorJob(jobId: string) {
     if (fileSizeLabel) {
       await appendProgressLog(job.id, `Tamaño final: ${fileSizeLabel}`);
     }
+    await appendProgressLog(job.id, "Generando paquete de publicación");
+    await createAndSavePublishingPack(
+      exportedJob ?? {
+        ...job,
+        finalVideoPath: getOutputRelativePath(job.id),
+      },
+    );
+    await appendProgressLog(job.id, "Caption de Instagram generado");
+    await appendProgressLog(job.id, "Texto de WhatsApp generado");
+    await appendProgressLog(job.id, "Checklist de publicación generado");
     await appendProgressLog(job.id, "Render final completado");
     return (await markJobCompleted(job.id)) ?? exportedJob;
   } catch (error) {

@@ -10,24 +10,47 @@ import {
 import { isValidPlatformPreset } from "@/lib/video-editor/platform-presets";
 import { defaultTemplateId, isValidTemplateId } from "@/lib/video-editor/templates";
 import type {
+  VideoEditorBarberiaOSConfig,
+  VideoEditorBarberiaOSQrPosition,
   VideoEditorCommercialPresetId,
   VideoEditorConfig,
   VideoEditorExportQuality,
+  VideoEditorMode,
   VideoEditorMotionMode,
   VideoEditorOutputFormat,
   VideoEditorPlatformPresetId,
   VideoEditorSubtitleStyle,
   VideoEditorTextMode,
 } from "@/lib/video-editor/types";
+import {
+  normalizeClientSnapshot,
+  isValidClientId,
+} from "@/lib/video-editor/client-utils";
 
 export { isValidOutputFormat, isValidExportQuality, isValidPlatformPreset, isValidCommercialPreset };
 
 const subtitleStyles = ["premium", "viral", "minimal"] as const;
 const textModes = ["auto", "custom"] as const;
 const motionModes = ["auto", "fallback"] as const;
+const videoEditorModes = ["standard", "barberiaos"] as const;
+const barberiaosQrPositions = [
+  "bottom_right",
+  "bottom_center",
+  "end_screen",
+] as const;
 const maxOverlayTextLength = 180;
 
 export const defaultVideoEditorConfig: VideoEditorConfig = {
+  clientId: null,
+  clientSnapshot: null,
+  mode: "standard",
+  barberiaos: {
+    bookingUrl: null,
+    barbershopName: "Tu barbería",
+    showQrOverlay: true,
+    qrCtaText: "Escanea y reserva tu cita",
+    qrPosition: "end_screen",
+  },
   commercialPreset: "custom",
   platformPreset: "instagram_reels",
   templateId: defaultTemplateId,
@@ -42,6 +65,7 @@ export const defaultVideoEditorConfig: VideoEditorConfig = {
   removeFillers: true,
   motionEnabled: true,
   motionMode: "auto",
+  copyReviewEnabled: true,
 };
 
 export function isValidSubtitleStyle(
@@ -58,6 +82,20 @@ export function normalizeVideoEditorConfig(value: unknown): VideoEditorConfig {
   const ctaMode = readOption(candidate.ctaMode, textModes, "auto");
 
   return {
+    clientId:
+      typeof candidate.clientId === "string" &&
+      isValidClientId(candidate.clientId)
+        ? candidate.clientId
+        : null,
+    clientSnapshot: normalizeClientSnapshot(
+      parseJson(candidate.clientSnapshot) ?? candidate.clientSnapshot,
+    ),
+    mode: readOption<VideoEditorMode>(
+      candidate.mode,
+      videoEditorModes,
+      defaultVideoEditorConfig.mode,
+    ),
+    barberiaos: normalizeBarberiaOSConfig(candidate),
     commercialPreset: isValidCommercialPreset(candidate.commercialPreset)
       ? (candidate.commercialPreset as VideoEditorCommercialPresetId)
       : defaultVideoEditorConfig.commercialPreset,
@@ -97,6 +135,52 @@ export function normalizeVideoEditorConfig(value: unknown): VideoEditorConfig {
       motionModes,
       defaultVideoEditorConfig.motionMode,
     ),
+    copyReviewEnabled: readBoolean(
+      candidate.copyReviewEnabled,
+      defaultVideoEditorConfig.copyReviewEnabled,
+    ),
+  };
+}
+
+function parseJson(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+export function normalizeBarberiaOSConfig(value: unknown): VideoEditorBarberiaOSConfig {
+  const candidate = toRecord(value);
+  const nested = toRecord(candidate.barberiaos);
+  const barberiaos = {
+    ...candidate,
+    ...nested,
+  };
+  const barbershopName =
+    normalizeBarberiaText(barberiaos.barbershopName, 80) ||
+    defaultVideoEditorConfig.barberiaos.barbershopName;
+  const qrCtaText =
+    normalizeBarberiaText(barberiaos.qrCtaText, 80) ||
+    defaultVideoEditorConfig.barberiaos.qrCtaText;
+
+  return {
+    bookingUrl: normalizeBookingUrl(barberiaos.bookingUrl),
+    barbershopName,
+    showQrOverlay: readBoolean(
+      barberiaos.showQrOverlay,
+      defaultVideoEditorConfig.barberiaos.showQrOverlay,
+    ),
+    qrCtaText,
+    qrPosition: readOption<VideoEditorBarberiaOSQrPosition>(
+      barberiaos.qrPosition,
+      barberiaosQrPositions,
+      defaultVideoEditorConfig.barberiaos.qrPosition,
+    ),
   };
 }
 
@@ -126,6 +210,50 @@ function normalizeText(value: unknown) {
   }
 
   const text = value.replace(/\s+/g, " ").trim().slice(0, maxOverlayTextLength);
+
+  return text || null;
+}
+
+function normalizeBookingUrl(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const bookingUrl = value.trim().slice(0, 800);
+
+  if (!bookingUrl) {
+    return null;
+  }
+
+  try {
+    const url = new URL(bookingUrl);
+
+    if (
+      (url.protocol !== "http:" && url.protocol !== "https:") ||
+      url.hostname === "localhost" ||
+      url.hostname === "127.0.0.1" ||
+      url.hostname === "::1"
+    ) {
+      return null;
+    }
+
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function normalizeBarberiaText(value: unknown, maxLength: number) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const text = value
+    .replace(/<[^>]*>/g, "")
+    .replace(/[<>]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
 
   return text || null;
 }

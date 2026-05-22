@@ -6,21 +6,27 @@ import { useRouter } from "next/navigation";
 import { EditorConfigPanel } from "@/components/video-editor/EditorConfigPanel";
 import { defaultVideoEditorConfig } from "@/lib/video-editor/config";
 import type { VideoEditorConfig } from "@/lib/video-editor/types";
+import type { VideoEditorClient } from "@/lib/video-editor/client-types";
 
 const supportedFormats = ["mp4", "mov", "m4v", "webm"];
 const maxFileSize = 250 * 1024 * 1024;
 const acceptedFormats = supportedFormats.map((format) => `.${format}`).join(",");
 
-export function UploadDropzone() {
+export function UploadDropzone({
+  initialConfig = defaultVideoEditorConfig,
+  clients = [],
+}: {
+  initialConfig?: VideoEditorConfig;
+  clients?: VideoEditorClient[];
+}) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [config, setConfig] = useState<VideoEditorConfig>(
-    defaultVideoEditorConfig,
-  );
+  const [config, setConfig] = useState<VideoEditorConfig>(initialConfig);
+  const isBarberiaOS = config.mode === "barberiaos";
 
   function selectFile(nextFile: File | undefined) {
     if (!nextFile) {
@@ -63,6 +69,20 @@ export function UploadDropzone() {
     formData.append("video", file);
 
     for (const [key, value] of Object.entries(config)) {
+      if (key === "barberiaos") {
+        continue;
+      }
+
+      formData.append(
+        key,
+        value === null
+          ? ""
+          : typeof value === "object"
+            ? JSON.stringify(value)
+            : String(value),
+      );
+    }
+    for (const [key, value] of Object.entries(config.barberiaos)) {
       formData.append(key, value === null ? "" : String(value));
     }
 
@@ -126,7 +146,9 @@ export function UploadDropzone() {
                 Subir vídeo
               </p>
               <p className="mt-1 text-sm leading-6 text-zinc-300">
-                Sube el clip original para preparar el job local.
+                {isBarberiaOS
+                  ? "Sube un vídeo de tu corte, local o promoción."
+                  : "Sube el clip original para preparar el job local."}
               </p>
             </div>
           </div>
@@ -159,7 +181,9 @@ export function UploadDropzone() {
           onClick={() => fileInputRef.current?.click()}
           type="button"
         >
-          Suelta tu vídeo aquí o haz click para elegir uno
+          {isBarberiaOS
+            ? "Suelta tu vídeo de barbería o haz click para elegirlo"
+            : "Suelta tu vídeo aquí o haz click para elegir uno"}
         </button>
         <p className="mt-4 text-sm uppercase text-zinc-400">
           Formatos permitidos
@@ -191,7 +215,7 @@ export function UploadDropzone() {
         </div>
       </section>
 
-      <EditorConfigPanel config={config} onChange={setConfig} />
+      <EditorConfigPanel clients={clients} config={config} onChange={setConfig} />
 
       <section className="flex flex-col gap-4 rounded-[8px] border border-white/10 bg-white/[0.06] p-5 shadow-[0_32px_120px_-72px_rgba(0,0,0,1)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div className="flex items-start gap-4">
