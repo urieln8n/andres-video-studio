@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { copyFile } from "node:fs/promises";
+import { copyFile, stat } from "node:fs/promises";
 import path from "node:path";
 
 import {
@@ -20,9 +20,15 @@ import {
 } from "@/lib/video-editor/job-store";
 import { selectCommercialTemplate } from "@/lib/video-editor/commercial-template-engine";
 import {
+  getEncodingParams,
   getOutputDimensions,
   normalizeVideoEditorConfig,
 } from "@/lib/video-editor/config";
+import {
+  formatFileSize,
+  getExportQualityProfile,
+  getOutputFormatProfile,
+} from "@/lib/video-editor/export-profiles";
 import {
   createEditPlan,
   createKeepRangesForCuts,
@@ -51,6 +57,7 @@ import {
   updateJobMetrics,
 } from "@/lib/video-editor/progress";
 import type {
+  VideoEditorExportQuality,
   VideoEditorJob,
   VideoEditorKeepRange,
   VideoEditorOutputFormat,
@@ -370,6 +377,17 @@ async function runVideoEditorJob(jobId: string) {
     await extractAudioWav(fillerSourceAbsolutePath, audioAbsolutePath);
     await tryTranscription(job.id, audioAbsolutePath, "final");
 
+    const formatProfile = getOutputFormatProfile(config.outputFormat);
+    const qualityProfile = getExportQualityProfile(config.exportQuality);
+
+    await appendProgressLog(
+      job.id,
+      `Aplicando perfil de exportación ${formatProfile.label}`,
+    );
+    await appendProgressLog(
+      job.id,
+      `Calidad ${qualityProfile.label.toLowerCase()} seleccionada`,
+    );
     await updateJob(job.id, (currentJob) =>
       appendJobLog(
         {
@@ -377,14 +395,27 @@ async function runVideoEditorJob(jobId: string) {
           progress: 68,
           currentStep: "generating_subtitles",
         },
-        `FFmpeg disponible. Iniciando render ${config.outputFormat}.`,
+        `Renderizando a ${formatProfile.width}x${formatProfile.height}`,
       ),
     );
+    await appendProgressLog(
+      job.id,
+      `CRF ${qualityProfile.crf}, preset ${qualityProfile.preset}`,
+    );
+
+    await updateJobMetrics(job.id, {
+      outputWidth: formatProfile.width,
+      outputHeight: formatProfile.height,
+      outputCrf: qualityProfile.crf,
+      outputPreset: qualityProfile.preset,
+      outputAudioBitrate: qualityProfile.audioBitrate,
+    });
 
     await renderFormattedVideo(
       fillerSourceAbsolutePath,
       verticalAbsolutePath,
       config.outputFormat,
+      config.exportQuality,
     );
 
     if (!(await fileHasContent(verticalAbsolutePath))) {
@@ -435,6 +466,7 @@ async function runVideoEditorJob(jobId: string) {
       verticalAbsolutePath,
       subtitles.subtitleAbsolutePath,
       subtitledAbsolutePath,
+      config.exportQuality,
     );
 
     if (!(await fileHasContent(subtitledAbsolutePath))) {
@@ -553,6 +585,7 @@ async function runVideoEditorJob(jobId: string) {
           ctaOverlayAbsolutePath: motion.cta.absolutePath,
           outputAbsolutePath,
           duration: commercialDuration,
+          exportQuality: config.exportQuality,
         });
 
         motionEngine = "hyperframes";
@@ -571,6 +604,8 @@ async function runVideoEditorJob(jobId: string) {
           outputAbsolutePath,
           duration: commercialDuration,
           template: commercialTemplate,
+          exportQuality: config.exportQuality,
+          outputFormat: config.outputFormat,
         });
 
         overlayPath = overlay.overlayRelativePath;
@@ -593,6 +628,8 @@ async function runVideoEditorJob(jobId: string) {
           outputAbsolutePath,
           duration: commercialDuration,
           template: commercialTemplate,
+          exportQuality: config.exportQuality,
+          outputFormat: config.outputFormat,
         });
 
         overlayPath = overlay.overlayRelativePath;
@@ -621,6 +658,24 @@ async function runVideoEditorJob(jobId: string) {
     }
 
     await setJobProgress(job.id, 97, "exporting");
+
+    let finalFileSizeBytes: number | null = null;
+    try {
+      const outputStat = await stat(outputAbsolutePath);
+      finalFileSizeBytes = outputStat.size;
+    } catch {
+      // File size is best-effort
+    }
+
+    const fileSizeLabel = finalFileSizeBytes
+      ? formatFileSize(finalFileSizeBytes)
+      : null;
+
+    await updateJobMetrics(job.id, {
+      finalFileSizeBytes,
+      finalFileSizeLabel: fileSizeLabel,
+    });
+
     const exportedJob = await updateJob(job.id, (currentJob) =>
       appendJobLog(
         {
@@ -640,6 +695,10 @@ async function runVideoEditorJob(jobId: string) {
         "Motion graphics completados",
       ),
     );
+    await appendProgressLog(job.id, "Archivo final generado");
+    if (fileSizeLabel) {
+      await appendProgressLog(job.id, `Tamaño final: ${fileSizeLabel}`);
+    }
     await appendProgressLog(job.id, "Render final completado");
     return (await markJobCompleted(job.id)) ?? exportedJob;
   } catch (error) {
@@ -674,23 +733,35 @@ async function renderFormattedVideo(
   inputPath: string,
   outputPath: string,
   outputFormat: VideoEditorOutputFormat,
+  exportQuality: VideoEditorExportQuality,
 ) {
   const { width, height } = getOutputDimensions(outputFormat);
+  const { crf, preset, audioBitrate } = getEncodingParams(exportQuality);
+
+  // Scale to cover the target canvas, then center-crop to exact resolution.
+  // This avoids letterboxing while never stretching/distorting the image.
+  const vf = [
+    `scale=${width}:${height}:force_original_aspect_ratio=increase`,
+    `crop=${width}:${height}`,
+    `setsar=1`,
+  ].join(",");
 
   await runProcess(ffmpegCommand, [
     "-y",
     "-i",
     inputPath,
     "-vf",
-    `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1`,
+    vf,
     "-c:v",
     "libx264",
     "-preset",
-    "veryfast",
+    preset,
     "-crf",
-    "23",
+    crf,
     "-c:a",
     "aac",
+    "-b:a",
+    audioBitrate,
     "-movflags",
     "+faststart",
     outputPath,
@@ -808,7 +879,10 @@ async function renderSubtitledVideo(
   inputPath: string,
   subtitlePath: string,
   outputPath: string,
+  exportQuality: VideoEditorExportQuality,
 ) {
+  const { crf, preset, audioBitrate } = getEncodingParams(exportQuality);
+
   await runProcess(ffmpegCommand, [
     "-y",
     "-i",
@@ -818,11 +892,13 @@ async function renderSubtitledVideo(
     "-c:v",
     "libx264",
     "-preset",
-    "veryfast",
+    preset,
     "-crf",
-    "23",
+    crf,
     "-c:a",
     "aac",
+    "-b:a",
+    audioBitrate,
     "-movflags",
     "+faststart",
     outputPath,

@@ -1,5 +1,6 @@
 "use client";
 
+import { ExportQualitySelector } from "@/components/video-editor/ExportQualitySelector";
 import { FormatSelector } from "@/components/video-editor/FormatSelector";
 import { SubtitleStyleSelector } from "@/components/video-editor/SubtitleStyleSelector";
 import { TemplateSelector } from "@/components/video-editor/TemplateSelector";
@@ -37,16 +38,20 @@ export function EditorConfigPanel({
           selectedTemplateId={config.templateId}
         />
 
-        <div className="grid gap-6 xl:grid-cols-2">
-          <FormatSelector
-            onSelect={(outputFormat) => update({ outputFormat })}
-            value={config.outputFormat}
-          />
-          <SubtitleStyleSelector
-            onSelect={(subtitleStyle) => update({ subtitleStyle })}
-            value={config.subtitleStyle}
-          />
-        </div>
+        <FormatSelector
+          onSelect={(outputFormat) => update({ outputFormat })}
+          value={config.outputFormat}
+        />
+
+        <ExportQualitySelector
+          onSelect={(exportQuality) => update({ exportQuality })}
+          value={config.exportQuality}
+        />
+
+        <SubtitleStyleSelector
+          onSelect={(subtitleStyle) => update({ subtitleStyle })}
+          value={config.subtitleStyle}
+        />
 
         <div className="grid gap-4 lg:grid-cols-2">
           <TextOption

@@ -3,6 +3,10 @@
 import Link from "next/link";
 
 import { normalizeVideoEditorConfig } from "@/lib/video-editor/config";
+import {
+  getExportQualityProfile,
+  getOutputFormatProfile,
+} from "@/lib/video-editor/export-profiles";
 import { getTemplateById } from "@/lib/video-editor/templates";
 import type { VideoEditorLibraryJob } from "@/lib/video-editor/types";
 
@@ -19,6 +23,8 @@ export function VideoJobCard({
     templateId: job.templateId,
   });
   const template = getTemplateById(config.templateId);
+  const formatProfile = getOutputFormatProfile(config.outputFormat);
+  const qualityProfile = getExportQualityProfile(config.exportQuality);
   const canProcess = job.status === "uploaded" || job.status === "failed";
   const canDownload = job.status === "completed" && job.hasFinalVideo;
 
@@ -38,11 +44,15 @@ export function VideoJobCard({
 
       <dl className="mt-5 grid gap-2 text-sm">
         <Meta label="Creado" value={formatDate(job.createdAt)} />
-        <Meta label="Actualizado" value={formatDate(job.updatedAt)} />
-        <Meta label="Formato" value={config.outputFormat} />
+        <Meta
+          label="Formato"
+          value={`${formatProfile.label} · ${formatProfile.width}x${formatProfile.height}`}
+        />
+        <Meta label="Calidad" value={qualityProfile.label} />
         <Meta label="Motion" value={job.motionEngine || "Pendiente"} />
-        <Meta label="Hook" value={job.hookText || template.hook} />
-        <Meta label="CTA" value={job.ctaText || template.cta} />
+        {job.metrics?.finalFileSizeLabel ? (
+          <Meta label="Tamaño" value={job.metrics.finalFileSizeLabel} />
+        ) : null}
       </dl>
 
       <div className="mt-4 rounded-[8px] border border-white/[0.08] bg-black/20 p-3 text-sm text-zinc-300">

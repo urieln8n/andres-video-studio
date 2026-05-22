@@ -119,9 +119,12 @@ export type VideoEditorTextMode = "auto" | "custom";
 
 export type VideoEditorMotionMode = "auto" | "fallback";
 
+export type VideoEditorExportQuality = "draft" | "standard" | "premium";
+
 export type VideoEditorConfig = {
   templateId: VideoEditorCommercialTemplate["id"];
   outputFormat: VideoEditorOutputFormat;
+  exportQuality: VideoEditorExportQuality;
   subtitleStyle: VideoEditorSubtitleStyle;
   hookMode: VideoEditorTextMode;
   hookText: string | null;
@@ -140,6 +143,13 @@ export type VideoEditorJobMetrics = {
   detectedSilencesCount?: number | null;
   fillersCount?: number | null;
   fillerRemovedSeconds?: number | null;
+  outputWidth?: number | null;
+  outputHeight?: number | null;
+  outputCrf?: number | null;
+  outputPreset?: string | null;
+  outputAudioBitrate?: string | null;
+  finalFileSizeBytes?: number | null;
+  finalFileSizeLabel?: string | null;
 };
 
 export type VideoEditorJob = {

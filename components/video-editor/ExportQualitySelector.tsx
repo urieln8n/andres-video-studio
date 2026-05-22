@@ -1,22 +1,22 @@
 "use client";
 
-import { outputFormatProfiles } from "@/lib/video-editor/export-profiles";
-import type { VideoEditorOutputFormat } from "@/lib/video-editor/types";
+import { exportQualityProfiles } from "@/lib/video-editor/export-profiles";
+import type { VideoEditorExportQuality } from "@/lib/video-editor/types";
 
-export function FormatSelector({
+export function ExportQualitySelector({
   onSelect,
   value,
 }: {
-  onSelect: (value: VideoEditorOutputFormat) => void;
-  value: VideoEditorOutputFormat;
+  onSelect: (value: VideoEditorExportQuality) => void;
+  value: VideoEditorExportQuality;
 }) {
   return (
     <fieldset>
       <legend className="text-sm font-semibold text-white">
-        Formato de salida
+        Calidad de exportación
       </legend>
       <div className="mt-3 grid gap-2 sm:grid-cols-3">
-        {outputFormatProfiles.map((profile) => (
+        {exportQualityProfiles.map((profile) => (
           <button
             key={profile.id}
             aria-pressed={profile.id === value}
@@ -40,7 +40,7 @@ export function FormatSelector({
               {profile.description}
             </span>
             <span className="mt-2 block text-xs text-zinc-500">
-              {profile.width}x{profile.height} · {profile.platformHints}
+              CRF {profile.crf} · {profile.preset} · {profile.audioBitrate}
             </span>
           </button>
         ))}

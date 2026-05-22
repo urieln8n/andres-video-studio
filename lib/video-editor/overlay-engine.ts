@@ -7,11 +7,14 @@ import {
   getCommercialOverlayAbsolutePath,
   getCommercialOverlayRelativePath,
 } from "@/lib/video-editor/job-store";
-import type { VideoEditorCommercialTemplate } from "@/lib/video-editor/types";
+import type {
+  VideoEditorCommercialTemplate,
+  VideoEditorExportQuality,
+} from "@/lib/video-editor/types";
+import { getEncodingParams } from "@/lib/video-editor/config";
 
 const ffmpegCommand = "ffmpeg";
 const maxErrorOutputLength = 8_000;
-const hookSeconds = 2.5;
 const ctaSeconds = 3;
 
 export async function renderCommercialOverlays({
@@ -20,12 +23,16 @@ export async function renderCommercialOverlays({
   outputAbsolutePath,
   duration,
   template,
+  exportQuality = "standard",
+  outputFormat = "vertical_9_16",
 }: {
   jobId: string;
   inputAbsolutePath: string;
   outputAbsolutePath: string;
   duration: number;
   template: VideoEditorCommercialTemplate;
+  exportQuality?: VideoEditorExportQuality;
+  outputFormat?: import("@/lib/video-editor/types").VideoEditorOutputFormat;
 }) {
   if (!(await fileHasContent(inputAbsolutePath))) {
     throw new Error("No existe el vídeo subtitulado para aplicar overlays.");
@@ -35,7 +42,9 @@ export async function renderCommercialOverlays({
 
   const overlayAbsolutePath = getCommercialOverlayAbsolutePath(jobId);
   const overlayRelativePath = getCommercialOverlayRelativePath(jobId);
-  const filterGraph = createCommercialFilterGraph(template, duration);
+  const filterGraph = createCommercialFilterGraph(template, duration, outputFormat);
+
+  const encoding = getEncodingParams(exportQuality);
 
   await writeFile(overlayAbsolutePath, filterGraph, "utf8");
   await runFfmpeg([
@@ -51,11 +60,13 @@ export async function renderCommercialOverlays({
     "-c:v",
     "libx264",
     "-preset",
-    "veryfast",
+    encoding.preset,
     "-crf",
-    "23",
+    encoding.crf,
     "-c:a",
     "aac",
+    "-b:a",
+    encoding.audioBitrate,
     "-movflags",
     "+faststart",
     outputAbsolutePath,
@@ -77,13 +88,16 @@ export async function composeMotionOverlayVideos({
   ctaOverlayAbsolutePath,
   outputAbsolutePath,
   duration,
+  exportQuality = "standard",
 }: {
   inputAbsolutePath: string;
   hookOverlayAbsolutePath: string;
   ctaOverlayAbsolutePath: string;
   outputAbsolutePath: string;
   duration: number;
+  exportQuality?: VideoEditorExportQuality;
 }) {
+  const encoding = getEncodingParams(exportQuality);
   const ctaStart = Math.max(0, duration - ctaSeconds).toFixed(3);
   const filterComplex =
     `[1:v]format=rgba[hook];` +
@@ -108,11 +122,13 @@ export async function composeMotionOverlayVideos({
     "-c:v",
     "libx264",
     "-preset",
-    "veryfast",
+    encoding.preset,
     "-crf",
-    "23",
+    encoding.crf,
     "-c:a",
     "aac",
+    "-b:a",
+    encoding.audioBitrate,
     "-movflags",
     "+faststart",
     outputAbsolutePath,
@@ -126,6 +142,7 @@ export async function composeMotionOverlayVideos({
 function createCommercialFilterGraph(
   template: VideoEditorCommercialTemplate,
   duration: number,
+  outputFormat: import("@/lib/video-editor/types").VideoEditorOutputFormat = "vertical_9_16",
 ) {
   const hookEnable = "between(t\\,0\\,2.5)";
   const ctaStart = Math.max(0, duration - ctaSeconds).toFixed(3);
@@ -134,7 +151,18 @@ function createCommercialFilterGraph(
   const hook = escapeDrawtext(template.hook);
   const cta = escapeDrawtext(template.cta);
 
-  return `[0:v]drawbox=x=78:y=112:w=iw-156:h=246:color=black@0.48:t=fill:enable='${hookEnable}',drawbox=x=112:y=132:w=iw-224:h=8:color=${accentColor}@0.96:t=fill:enable='${hookEnable}',drawtext=text='${hook}':expansion=none:fontcolor=white:fontsize=50:line_spacing=14:borderw=1:bordercolor=black@0.35:shadowcolor=black@0.95:shadowx=4:shadowy=5:x=(w-text_w)/2:y=202:enable='${hookEnable}',drawbox=x=96:y=ih-720:w=iw-192:h=212:color=black@0.52:t=fill:enable='${ctaEnable}',drawbox=x=132:y=ih-540:w=iw-264:h=8:color=${accentColor}@0.96:t=fill:enable='${ctaEnable}',drawtext=text='${cta}':expansion=none:fontcolor=white:fontsize=68:line_spacing=12:borderw=1:bordercolor=black@0.35:shadowcolor=black@0.95:shadowx=4:shadowy=5:x=(w-text_w)/2:y=ih-662:enable='${ctaEnable}'[commercial]\n`;
+  // Adapt text size and positioning per format
+  const hookFs = outputFormat === "horizontal_16_9" ? 36 : outputFormat === "square_1_1" ? 42 : 50;
+  const ctaFs = outputFormat === "horizontal_16_9" ? 46 : outputFormat === "square_1_1" ? 54 : 68;
+  const hookBoxY = outputFormat === "horizontal_16_9" ? 60 : 112;
+  const hookBoxH = outputFormat === "horizontal_16_9" ? 180 : 246;
+  const hookTextY = outputFormat === "horizontal_16_9" ? 120 : 202;
+  const ctaBoxOffset = outputFormat === "horizontal_16_9" ? 320 : 720;
+  const ctaBoxH = outputFormat === "horizontal_16_9" ? 160 : 212;
+  const ctaAccentOffset = outputFormat === "horizontal_16_9" ? 200 : 540;
+  const ctaTextOffset = outputFormat === "horizontal_16_9" ? 260 : 662;
+
+  return `[0:v]drawbox=x=78:y=${hookBoxY}:w=iw-156:h=${hookBoxH}:color=black@0.48:t=fill:enable='${hookEnable}',drawbox=x=112:y=${hookBoxY + 20}:w=iw-224:h=8:color=${accentColor}@0.96:t=fill:enable='${hookEnable}',drawtext=text='${hook}':expansion=none:fontcolor=white:fontsize=${hookFs}:line_spacing=14:borderw=1:bordercolor=black@0.35:shadowcolor=black@0.95:shadowx=4:shadowy=5:x=(w-text_w)/2:y=${hookTextY}:enable='${hookEnable}',drawbox=x=96:y=ih-${ctaBoxOffset}:w=iw-192:h=${ctaBoxH}:color=black@0.52:t=fill:enable='${ctaEnable}',drawbox=x=132:y=ih-${ctaAccentOffset}:w=iw-264:h=8:color=${accentColor}@0.96:t=fill:enable='${ctaEnable}',drawtext=text='${cta}':expansion=none:fontcolor=white:fontsize=${ctaFs}:line_spacing=12:borderw=1:bordercolor=black@0.35:shadowcolor=black@0.95:shadowx=4:shadowy=5:x=(w-text_w)/2:y=ih-${ctaTextOffset}:enable='${ctaEnable}'[commercial]\n`;
 }
 
 function escapeDrawtext(text: string) {

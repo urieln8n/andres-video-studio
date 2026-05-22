@@ -58,7 +58,7 @@ function buildAssDocument(
 ) {
   const config = normalizeVideoEditorConfig(job.config);
   const dimensions = getOutputDimensions(config.outputFormat);
-  const style = getSubtitleStyle(config.subtitleStyle);
+  const style = getSubtitleStyle(config.subtitleStyle, config.outputFormat);
   const events = segments
     .map(
       (segment) =>
@@ -100,23 +100,40 @@ function formatSubtitleText(
   );
 }
 
-function getSubtitleStyle(style: VideoEditorSubtitleStyle) {
+function getSubtitleStyle(
+  style: VideoEditorSubtitleStyle,
+  format: import("@/lib/video-editor/types").VideoEditorOutputFormat = "vertical_9_16",
+) {
+  // Adjust font size, margins based on output format
+  // Vertical: large text, low position
+  // Square: medium text, slightly centered
+  // Horizontal: smaller text, low position
+  const scale = format === "horizontal_16_9" ? 0.65 : format === "square_1_1" ? 0.82 : 1;
+  const marginV = format === "horizontal_16_9" ? 80 : format === "square_1_1" ? 130 : 250;
+  const marginH = format === "horizontal_16_9" ? 120 : format === "square_1_1" ? 80 : 90;
+
   switch (style) {
-    case "viral":
+    case "viral": {
+      const fs = Math.round(96 * scale);
       return {
         name: "Viral",
-        ass: "Style: Viral,Arial,96,&H00FFFFFF,&H0000D7FF,&H00000000,&H78000000,-1,0,0,0,100,100,0,0,1,8,4,2,72,72,210,1",
+        ass: `Style: Viral,Arial,${fs},&H00FFFFFF,&H0000D7FF,&H00000000,&H78000000,-1,0,0,0,100,100,0,0,1,8,4,2,${marginH},${marginH},${marginV},1`,
       };
-    case "minimal":
+    }
+    case "minimal": {
+      const fs = Math.round(58 * scale);
       return {
         name: "Minimal",
-        ass: "Style: Minimal,Arial,58,&H00FFFFFF,&H00FFFFFF,&H00000000,&H50000000,0,0,0,0,100,100,0,0,1,3,1,2,96,96,160,1",
+        ass: `Style: Minimal,Arial,${fs},&H00FFFFFF,&H00FFFFFF,&H00000000,&H50000000,0,0,0,0,100,100,0,0,1,3,1,2,${marginH},${marginH},${Math.round(marginV * 0.64)},1`,
       };
-    default:
+    }
+    default: {
+      const fs = Math.round(82 * scale);
       return {
         name: "Premium",
-        ass: "Style: Premium,Arial,82,&H00FFFFFF,&H0000D7FF,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,6,2,2,90,90,250,1",
+        ass: `Style: Premium,Arial,${fs},&H00FFFFFF,&H0000D7FF,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,6,2,2,${marginH},${marginH},${marginV},1`,
       };
+    }
   }
 }
 

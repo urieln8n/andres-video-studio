@@ -13,6 +13,10 @@ import {
 import { resolveFinalVideoFile } from "@/lib/video-editor/file-response";
 import { getTemplateById } from "@/lib/video-editor/templates";
 import { normalizeVideoEditorConfig } from "@/lib/video-editor/config";
+import {
+  getExportQualityProfile,
+  getOutputFormatProfile,
+} from "@/lib/video-editor/export-profiles";
 
 type VideoResultPageProps = {
   searchParams: Promise<{ jobId?: string | string[] }>;
@@ -57,19 +61,56 @@ export default async function VideoResultPage({
   const config = normalizeVideoEditorConfig(job.config ?? {
     templateId: job.templateId,
   });
+  const formatProfile = getOutputFormatProfile(config.outputFormat);
+  const qualityProfile = getExportQualityProfile(config.exportQuality);
+  const metrics = job.metrics;
   const details: VideoDetail[] = [
     { label: "Job ID", value: job.id },
     { label: "Nombre original", value: job.originalFileName },
     { label: "Archivo final", value: outputFileName },
     {
+      label: "Formato usado",
+      value: `${formatProfile.label} (${formatProfile.aspectRatio})`,
+    },
+    {
+      label: "Resolución final",
+      value: `${metrics?.outputWidth ?? formatProfile.width}x${metrics?.outputHeight ?? formatProfile.height}`,
+    },
+    {
+      label: "Calidad usada",
+      value: qualityProfile.label,
+    },
+    {
+      label: "CRF",
+      value: String(metrics?.outputCrf ?? qualityProfile.crf),
+    },
+    {
+      label: "Preset",
+      value: metrics?.outputPreset ?? qualityProfile.preset,
+    },
+    {
+      label: "Audio bitrate",
+      value: metrics?.outputAudioBitrate ?? qualityProfile.audioBitrate,
+    },
+    {
+      label: "Tamaño final",
+      value: metrics?.finalFileSizeLabel ?? "Pendiente",
+    },
+    {
+      label: "Plataformas",
+      value: formatProfile.platformHints,
+    },
+    {
       label: "Ruta output local",
       value: finalVideo?.relativePath || "Pendiente",
     },
-    { label: "Vídeo limpio", value: job.cleanVideoPath || "Pendiente" },
-    { label: "Plan de edición", value: job.editPlanPath || "Pendiente" },
     {
-      label: "Plan de fillers",
-      value: job.fillerPlanPath || "Pendiente",
+      label: "Duración original",
+      value: formatSeconds(job.originalDuration),
+    },
+    {
+      label: "Duración final",
+      value: formatSeconds(job.finalEstimatedDuration),
     },
     {
       label: "Silencios detectados",
@@ -87,20 +128,7 @@ export default async function VideoResultPage({
       label: "Segundos eliminados por fillers",
       value: formatSeconds(job.fillerRemovedSeconds),
     },
-    {
-      label: "Vídeo limpio de fillers",
-      value: job.fillerCleanVideoPath || "Pendiente",
-    },
-    {
-      label: "Duración original",
-      value: formatSeconds(job.originalDuration),
-    },
-    {
-      label: "Duración final",
-      value: formatSeconds(job.finalEstimatedDuration),
-    },
     { label: "Plantilla usada", value: template.name },
-    { label: "Formato usado", value: config.outputFormat },
     { label: "Estilo de subtítulos", value: config.subtitleStyle },
     { label: "Hook usado", value: job.hookText || "Pendiente" },
     { label: "CTA usado", value: job.ctaText || "Pendiente" },
@@ -115,43 +143,15 @@ export default async function VideoResultPage({
     { label: "Motion graphics", value: formatToggle(config.motionEnabled) },
     { label: "Motor motion", value: job.motionEngine || "Pendiente" },
     {
-      label: "Hook overlay motion",
-      value: job.hookOverlayPath || "Fallback",
-    },
-    {
-      label: "CTA overlay motion",
-      value: job.ctaOverlayPath || "Fallback",
-    },
-    {
       label: "Warnings motion",
       value: job.motionWarnings?.join(" ") || "Sin warnings",
     },
-    { label: "Overlay comercial", value: job.overlayPath || "Fallback" },
-    {
-      label: "Vídeo final comercial",
-      value: job.finalVideoPath || "Pendiente",
-    },
-    { label: "Transcript", value: job.transcriptPath || "Pendiente" },
-    {
-      label: "Transcript final",
-      value: job.finalTranscriptPath || "Pendiente",
-    },
     { label: "Idioma", value: job.language || "Pendiente" },
-    {
-      label: "Texto transcrito",
-      value: job.transcriptionText || "Usando segmentos mock",
-    },
-    { label: "Subtítulos ASS", value: job.subtitlesPath || "Pendiente" },
-    {
-      label: "Archivo final",
-      value: outputAvailable ? outputFileName : "Pendiente",
-    },
     {
       label: "ASS creado",
       value: subtitlesAvailable ? "Disponible" : "Pendiente",
     },
     { label: "Estado", value: job.status },
-    { label: "Paso actual", value: job.currentStep },
   ];
 
   return (

@@ -1,17 +1,21 @@
+import {
+  getExportQualityProfile,
+  getOutputFormatProfile,
+  isValidExportQuality,
+  isValidOutputFormat,
+} from "@/lib/video-editor/export-profiles";
 import { defaultTemplateId, isValidTemplateId } from "@/lib/video-editor/templates";
 import type {
   VideoEditorConfig,
+  VideoEditorExportQuality,
   VideoEditorMotionMode,
   VideoEditorOutputFormat,
   VideoEditorSubtitleStyle,
   VideoEditorTextMode,
 } from "@/lib/video-editor/types";
 
-const outputFormats = [
-  "vertical_9_16",
-  "square_1_1",
-  "horizontal_16_9",
-] as const;
+export { isValidOutputFormat, isValidExportQuality };
+
 const subtitleStyles = ["premium", "viral", "minimal"] as const;
 const textModes = ["auto", "custom"] as const;
 const motionModes = ["auto", "fallback"] as const;
@@ -20,6 +24,7 @@ const maxOverlayTextLength = 180;
 export const defaultVideoEditorConfig: VideoEditorConfig = {
   templateId: defaultTemplateId,
   outputFormat: "vertical_9_16",
+  exportQuality: "standard",
   subtitleStyle: "premium",
   hookMode: "auto",
   hookText: null,
@@ -30,12 +35,6 @@ export const defaultVideoEditorConfig: VideoEditorConfig = {
   motionEnabled: true,
   motionMode: "auto",
 };
-
-export function isValidOutputFormat(
-  value: unknown,
-): value is VideoEditorOutputFormat {
-  return outputFormats.includes(value as VideoEditorOutputFormat);
-}
 
 export function isValidSubtitleStyle(
   value: unknown,
@@ -57,6 +56,9 @@ export function normalizeVideoEditorConfig(value: unknown): VideoEditorConfig {
     outputFormat: isValidOutputFormat(candidate.outputFormat)
       ? candidate.outputFormat
       : defaultVideoEditorConfig.outputFormat,
+    exportQuality: isValidExportQuality(candidate.exportQuality)
+      ? candidate.exportQuality
+      : defaultVideoEditorConfig.exportQuality,
     subtitleStyle: isValidSubtitleStyle(candidate.subtitleStyle)
       ? candidate.subtitleStyle
       : defaultVideoEditorConfig.subtitleStyle,
@@ -85,14 +87,17 @@ export function normalizeVideoEditorConfig(value: unknown): VideoEditorConfig {
 }
 
 export function getOutputDimensions(format: VideoEditorOutputFormat) {
-  switch (format) {
-    case "square_1_1":
-      return { width: 1080, height: 1080 };
-    case "horizontal_16_9":
-      return { width: 1920, height: 1080 };
-    default:
-      return { width: 1080, height: 1920 };
-  }
+  const profile = getOutputFormatProfile(format);
+  return { width: profile.width, height: profile.height };
+}
+
+export function getEncodingParams(quality: VideoEditorExportQuality) {
+  const profile = getExportQualityProfile(quality);
+  return {
+    crf: String(profile.crf),
+    preset: profile.preset,
+    audioBitrate: profile.audioBitrate,
+  };
 }
 
 function toRecord(value: unknown) {
