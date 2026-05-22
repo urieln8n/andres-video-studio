@@ -233,6 +233,22 @@ export type VideoEditorPublishingPack = {
   createdAt: string;
 };
 
+export type VideoEditorExportPackageFile = {
+  name: string;
+  path: string;
+  type: "video" | "text" | "json";
+};
+
+export type VideoEditorExportPackage = {
+  jobId: string;
+  exportDir: string;
+  zipPath: string;
+  files: VideoEditorExportPackageFile[];
+  createdAt: string;
+  sizeBytes: number;
+  sizeLabel: string;
+};
+
 export type VideoEditorJobMetrics = {
   originalDuration?: number | null;
   finalEstimatedDuration?: number | null;
@@ -283,6 +299,10 @@ export type VideoEditorJob = {
   publishingTitle?: string | null;
   publishingHashtags?: string[];
   publishingProvider?: VideoEditorPublishingPack["provider"] | null;
+  exportPackagePath?: string | null;
+  exportPackageCreated?: boolean;
+  exportPackageSizeBytes?: number | null;
+  exportPackageSizeLabel?: string | null;
   qrPath?: string | null;
   qrOverlayApplied?: boolean | null;
   qrWarnings?: string[];

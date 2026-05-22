@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 
 import { getCommercialPresetById, isValidCommercialPreset } from "@/lib/video-editor/commercial-presets";
 import { normalizeVideoEditorConfig } from "@/lib/video-editor/config";
@@ -34,6 +35,36 @@ export function VideoJobCard({
   const canDownload = job.status === "completed" && job.hasFinalVideo;
   const canReview =
     job.status === "awaiting_copy_review" || job.status === "copy_approved";
+  const [exportCreated, setExportCreated] = useState(
+    job.exportPackageCreated === true,
+  );
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  async function generateExportPackage() {
+    setExportBusy(true);
+    setExportError(null);
+
+    try {
+      const response = await fetch(
+        `/api/video-editor/jobs/${encodeURIComponent(job.id)}/export-package`,
+        { method: "POST" },
+      );
+      const payload = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error || "No se pudo generar el pack ZIP.");
+      }
+
+      setExportCreated(true);
+    } catch (error) {
+      setExportError(
+        error instanceof Error ? error.message : "No se pudo generar el pack ZIP.",
+      );
+    } finally {
+      setExportBusy(false);
+    }
+  }
 
   return (
     <article className="flex min-h-[31rem] flex-col rounded-[8px] border border-white/10 bg-white/[0.065] p-5 shadow-[0_32px_110px_-74px_rgba(0,0,0,1)] backdrop-blur-xl">
@@ -56,6 +87,11 @@ export function VideoJobCard({
             {job.publishingPackCreated ? (
               <span className="rounded-[8px] border border-amber-100/20 bg-amber-100/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-100">
                 Pack
+              </span>
+            ) : null}
+            {exportCreated ? (
+              <span className="rounded-[8px] border border-emerald-100/20 bg-emerald-100/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-emerald-100">
+                Pack ZIP
               </span>
             ) : null}
           </div>
@@ -112,6 +148,11 @@ export function VideoJobCard({
           </div>
         ) : null}
       </div>
+      {exportError ? (
+        <p className="mt-3 rounded-[8px] border border-rose-200/20 bg-rose-200/10 px-3 py-2 text-sm text-rose-100">
+          {exportError}
+        </p>
+      ) : null}
 
       <div className="mt-auto grid gap-2 pt-5 sm:grid-cols-2">
         <Link
@@ -159,6 +200,24 @@ export function VideoJobCard({
           >
             Ver pack
           </Link>
+        ) : null}
+        {canDownload && exportCreated ? (
+          <a
+            href={`/api/video-editor/jobs/${encodeURIComponent(job.id)}/export-package/download`}
+            className="inline-flex min-h-11 items-center justify-center rounded-[8px] border border-emerald-200/20 bg-emerald-200/10 px-3 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-200/15"
+          >
+            Descargar pack
+          </a>
+        ) : null}
+        {canDownload && !exportCreated ? (
+          <button
+            className="inline-flex min-h-11 items-center justify-center rounded-[8px] border border-[#efd8ad]/25 bg-[#d6b26e]/12 px-3 text-sm font-semibold text-[#efd8ad] transition hover:bg-[#d6b26e]/22 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={exportBusy}
+            onClick={generateExportPackage}
+            type="button"
+          >
+            {exportBusy ? "Generando..." : "Generar pack"}
+          </button>
         ) : null}
         <button
           className="inline-flex min-h-11 items-center justify-center rounded-[8px] border border-rose-200/15 bg-rose-200/[0.08] px-3 text-sm font-semibold text-rose-100 transition hover:bg-rose-200/[0.14] disabled:cursor-not-allowed disabled:opacity-50"

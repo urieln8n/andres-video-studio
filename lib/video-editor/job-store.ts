@@ -29,6 +29,7 @@ const jobsRoot = path.join(storageRoot, "jobs");
 const outputRoot = path.join(storageRoot, "output");
 const tempRoot = path.join(storageRoot, "temp");
 const transcriptsRoot = path.join(storageRoot, "transcripts");
+const exportsRoot = path.join(storageRoot, "exports");
 
 export function isAllowedVideoFileName(fileName: string) {
   return VIDEO_EDITOR_ALLOWED_EXTENSIONS.includes(
@@ -56,6 +57,7 @@ export async function ensureVideoEditorStorage() {
     mkdir(outputRoot, { recursive: true }),
     mkdir(tempRoot, { recursive: true }),
     mkdir(transcriptsRoot, { recursive: true }),
+    mkdir(exportsRoot, { recursive: true }),
   ]);
 }
 
@@ -77,6 +79,32 @@ export function getOutputRelativePath(jobId: string) {
 
 export function getOutputRootAbsolutePath() {
   return path.resolve(outputRoot);
+}
+
+export function getExportsRootAbsolutePath() {
+  return path.resolve(exportsRoot);
+}
+
+export function getExportPackageDirAbsolutePath(jobId: string) {
+  return path.join(exportsRoot, path.basename(jobId));
+}
+
+export function getExportPackageDirRelativePath(jobId: string) {
+  return path.posix.join("storage", "exports", jobId);
+}
+
+export function getExportPackageZipAbsolutePath(jobId: string) {
+  return path.join(
+    getExportPackageDirAbsolutePath(jobId),
+    `andres-video-studio-${jobId}.zip`,
+  );
+}
+
+export function getExportPackageZipRelativePath(jobId: string) {
+  return path.posix.join(
+    getExportPackageDirRelativePath(jobId),
+    `andres-video-studio-${jobId}.zip`,
+  );
 }
 
 export function getSubtitledOutputAbsolutePath(jobId: string) {
@@ -256,6 +284,10 @@ export function createUploadedJob(fileName: string, configValue?: unknown) {
     publishingTitle: null,
     publishingHashtags: [],
     publishingProvider: null,
+    exportPackagePath: null,
+    exportPackageCreated: false,
+    exportPackageSizeBytes: null,
+    exportPackageSizeLabel: null,
     qrPath: null,
     qrOverlayApplied: null,
     qrWarnings: [],
@@ -370,6 +402,7 @@ export async function deleteJobArtifacts(jobId: string) {
     removeJobOutputFile(job.finalVideoPath, jobId),
     removePrefixedFiles(tempRoot, jobId),
     removePrefixedFiles(transcriptsRoot, jobId),
+    removeExportPackageDirectory(jobId),
   ]);
   const jobRemoved = await removeKnownFile(getJobAbsolutePath(jobId), jobsRoot);
 
@@ -476,6 +509,29 @@ async function removeKnownFile(filePath: string, root: string): Promise<number> 
 
   await rm(absolutePath, { force: true });
   return 1;
+}
+
+async function removeExportPackageDirectory(jobId: string): Promise<number> {
+  const exportDir = getExportPackageDirAbsolutePath(jobId);
+  const absoluteExportsRoot = path.resolve(exportsRoot);
+  const absoluteExportDir = path.resolve(exportDir);
+
+  if (!isInsideRoot(absoluteExportsRoot, absoluteExportDir)) {
+    return 0;
+  }
+
+  try {
+    const entries = await readdir(absoluteExportDir, { withFileTypes: true });
+
+    await rm(absoluteExportDir, { force: true, recursive: true });
+    return entries.filter((entry) => entry.isFile()).length;
+  } catch (error) {
+    if (isFileMissingError(error)) {
+      return 0;
+    }
+
+    throw error;
+  }
 }
 
 function isInsideRoot(root: string, candidate: string) {

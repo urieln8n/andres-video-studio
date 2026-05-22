@@ -6,6 +6,7 @@ import { ResultVideoPreview } from "@/components/video-editor/ResultVideoPreview
 import { VideoDetailsCard } from "@/components/video-editor/VideoDetailsCard";
 import { QrPreviewCard } from "@/components/video-editor/QrPreviewCard";
 import { PublishingPackCard } from "@/components/video-editor/PublishingPackCard";
+import { ExportPackageCard } from "@/components/video-editor/ExportPackageCard";
 import type { VideoDetail } from "@/lib/video-editor/mock-data";
 import {
   fileHasContent,
@@ -350,6 +351,13 @@ export default async function VideoResultPage({
               </p>
             </section>
           )}
+
+          <ExportPackageCard
+            created={job.exportPackageCreated === true}
+            jobId={job.id}
+            outputAvailable={outputAvailable}
+            sizeLabel={job.exportPackageSizeLabel ?? null}
+          />
 
           <VideoDetailsCard details={details} />
         </div>
