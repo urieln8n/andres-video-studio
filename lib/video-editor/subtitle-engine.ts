@@ -7,8 +7,11 @@ import {
   getSubtitleRelativePath,
 } from "@/lib/video-editor/job-store";
 import { getOutputDimensions, normalizeVideoEditorConfig } from "@/lib/video-editor/config";
+import { getPlatformPresetById } from "@/lib/video-editor/platform-presets";
 import type {
   VideoEditorJob,
+  VideoEditorOutputFormat,
+  VideoEditorSafeZone,
   VideoEditorSubtitleSegment,
   VideoEditorSubtitleStyle,
 } from "@/lib/video-editor/types";
@@ -58,7 +61,11 @@ function buildAssDocument(
 ) {
   const config = normalizeVideoEditorConfig(job.config);
   const dimensions = getOutputDimensions(config.outputFormat);
-  const style = getSubtitleStyle(config.subtitleStyle, config.outputFormat);
+  const safeZone =
+    config.platformPreset !== "custom"
+      ? getPlatformPresetById(config.platformPreset).safeZone
+      : undefined;
+  const style = getSubtitleStyle(config.subtitleStyle, config.outputFormat, safeZone);
   const events = segments
     .map(
       (segment) =>
@@ -102,15 +109,18 @@ function formatSubtitleText(
 
 function getSubtitleStyle(
   style: VideoEditorSubtitleStyle,
-  format: import("@/lib/video-editor/types").VideoEditorOutputFormat = "vertical_9_16",
+  format: VideoEditorOutputFormat = "vertical_9_16",
+  safeZone?: VideoEditorSafeZone,
 ) {
   // Adjust font size, margins based on output format
   // Vertical: large text, low position
   // Square: medium text, slightly centered
   // Horizontal: smaller text, low position
   const scale = format === "horizontal_16_9" ? 0.65 : format === "square_1_1" ? 0.82 : 1;
-  const marginV = format === "horizontal_16_9" ? 80 : format === "square_1_1" ? 130 : 250;
-  const marginH = format === "horizontal_16_9" ? 120 : format === "square_1_1" ? 80 : 90;
+  const defaultMarginV = format === "horizontal_16_9" ? 80 : format === "square_1_1" ? 130 : 250;
+  const marginV = safeZone ? Math.max(defaultMarginV, safeZone.bottom) : defaultMarginV;
+  const defaultMarginH = format === "horizontal_16_9" ? 120 : format === "square_1_1" ? 80 : 90;
+  const marginH = safeZone ? Math.max(defaultMarginH, safeZone.left) : defaultMarginH;
 
   switch (style) {
     case "viral": {

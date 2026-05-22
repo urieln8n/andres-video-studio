@@ -2,10 +2,12 @@
 
 import { ExportQualitySelector } from "@/components/video-editor/ExportQualitySelector";
 import { FormatSelector } from "@/components/video-editor/FormatSelector";
+import { PlatformPresetSelector } from "@/components/video-editor/PlatformPresetSelector";
 import { SubtitleStyleSelector } from "@/components/video-editor/SubtitleStyleSelector";
 import { TemplateSelector } from "@/components/video-editor/TemplateSelector";
 import { ToggleOption } from "@/components/video-editor/ToggleOption";
 import type { VideoEditorConfig } from "@/lib/video-editor/types";
+import type { VideoEditorPlatformPreset } from "@/lib/video-editor/platform-presets";
 
 export function EditorConfigPanel({
   config,
@@ -16,6 +18,20 @@ export function EditorConfigPanel({
 }) {
   function update(value: Partial<VideoEditorConfig>) {
     onChange({ ...config, ...value });
+  }
+
+  function applyPreset(preset: VideoEditorPlatformPreset) {
+    onChange({
+      ...config,
+      platformPreset: preset.id,
+      outputFormat: preset.outputFormat,
+      exportQuality: preset.exportQuality,
+      subtitleStyle: preset.subtitleStyle,
+    });
+  }
+
+  function updateWithCustom(value: Partial<VideoEditorConfig>) {
+    onChange({ ...config, ...value, platformPreset: "custom" });
   }
 
   return (
@@ -33,23 +49,28 @@ export function EditorConfigPanel({
       </div>
 
       <div className="flex flex-col gap-6">
+        <PlatformPresetSelector
+          onSelect={applyPreset}
+          value={config.platformPreset}
+        />
+
         <TemplateSelector
           onSelect={(templateId) => update({ templateId })}
           selectedTemplateId={config.templateId}
         />
 
         <FormatSelector
-          onSelect={(outputFormat) => update({ outputFormat })}
+          onSelect={(outputFormat) => updateWithCustom({ outputFormat })}
           value={config.outputFormat}
         />
 
         <ExportQualitySelector
-          onSelect={(exportQuality) => update({ exportQuality })}
+          onSelect={(exportQuality) => updateWithCustom({ exportQuality })}
           value={config.exportQuality}
         />
 
         <SubtitleStyleSelector
-          onSelect={(subtitleStyle) => update({ subtitleStyle })}
+          onSelect={(subtitleStyle) => updateWithCustom({ subtitleStyle })}
           value={config.subtitleStyle}
         />
 

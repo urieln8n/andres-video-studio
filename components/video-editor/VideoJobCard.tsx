@@ -7,6 +7,7 @@ import {
   getExportQualityProfile,
   getOutputFormatProfile,
 } from "@/lib/video-editor/export-profiles";
+import { getPlatformPresetById } from "@/lib/video-editor/platform-presets";
 import { getTemplateById } from "@/lib/video-editor/templates";
 import type { VideoEditorLibraryJob } from "@/lib/video-editor/types";
 
@@ -45,11 +46,18 @@ export function VideoJobCard({
       <dl className="mt-5 grid gap-2 text-sm">
         <Meta label="Creado" value={formatDate(job.createdAt)} />
         <Meta
+          label="Plataforma"
+          value={
+            config.platformPreset === "custom"
+              ? "Personalizado"
+              : getPlatformPresetById(config.platformPreset).label
+          }
+        />
+        <Meta
           label="Formato"
           value={`${formatProfile.label} · ${formatProfile.width}x${formatProfile.height}`}
         />
         <Meta label="Calidad" value={qualityProfile.label} />
-        <Meta label="Motion" value={job.motionEngine || "Pendiente"} />
         {job.metrics?.finalFileSizeLabel ? (
           <Meta label="Tamaño" value={job.metrics.finalFileSizeLabel} />
         ) : null}

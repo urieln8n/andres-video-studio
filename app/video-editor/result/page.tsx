@@ -17,6 +17,7 @@ import {
   getExportQualityProfile,
   getOutputFormatProfile,
 } from "@/lib/video-editor/export-profiles";
+import { getPlatformPresetById } from "@/lib/video-editor/platform-presets";
 
 type VideoResultPageProps = {
   searchParams: Promise<{ jobId?: string | string[] }>;
@@ -64,10 +65,23 @@ export default async function VideoResultPage({
   const formatProfile = getOutputFormatProfile(config.outputFormat);
   const qualityProfile = getExportQualityProfile(config.exportQuality);
   const metrics = job.metrics;
+  const presetLabel =
+    config.platformPreset === "custom"
+      ? "Personalizado"
+      : getPlatformPresetById(config.platformPreset).label;
+  const presetBadge =
+    config.platformPreset === "custom"
+      ? "Custom"
+      : getPlatformPresetById(config.platformPreset).badge;
+
   const details: VideoDetail[] = [
     { label: "Job ID", value: job.id },
     { label: "Nombre original", value: job.originalFileName },
     { label: "Archivo final", value: outputFileName },
+    {
+      label: "Plataforma",
+      value: `${presetLabel} (${presetBadge})`,
+    },
     {
       label: "Formato usado",
       value: `${formatProfile.label} (${formatProfile.aspectRatio})`,

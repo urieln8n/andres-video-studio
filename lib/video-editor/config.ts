@@ -4,17 +4,19 @@ import {
   isValidExportQuality,
   isValidOutputFormat,
 } from "@/lib/video-editor/export-profiles";
+import { isValidPlatformPreset } from "@/lib/video-editor/platform-presets";
 import { defaultTemplateId, isValidTemplateId } from "@/lib/video-editor/templates";
 import type {
   VideoEditorConfig,
   VideoEditorExportQuality,
   VideoEditorMotionMode,
   VideoEditorOutputFormat,
+  VideoEditorPlatformPresetId,
   VideoEditorSubtitleStyle,
   VideoEditorTextMode,
 } from "@/lib/video-editor/types";
 
-export { isValidOutputFormat, isValidExportQuality };
+export { isValidOutputFormat, isValidExportQuality, isValidPlatformPreset };
 
 const subtitleStyles = ["premium", "viral", "minimal"] as const;
 const textModes = ["auto", "custom"] as const;
@@ -22,6 +24,7 @@ const motionModes = ["auto", "fallback"] as const;
 const maxOverlayTextLength = 180;
 
 export const defaultVideoEditorConfig: VideoEditorConfig = {
+  platformPreset: "instagram_reels",
   templateId: defaultTemplateId,
   outputFormat: "vertical_9_16",
   exportQuality: "standard",
@@ -50,6 +53,9 @@ export function normalizeVideoEditorConfig(value: unknown): VideoEditorConfig {
   const ctaMode = readOption(candidate.ctaMode, textModes, "auto");
 
   return {
+    platformPreset: isValidPlatformPreset(candidate.platformPreset)
+      ? (candidate.platformPreset as VideoEditorPlatformPresetId)
+      : defaultVideoEditorConfig.platformPreset,
     templateId: isValidTemplateId(candidate.templateId)
       ? candidate.templateId
       : defaultVideoEditorConfig.templateId,

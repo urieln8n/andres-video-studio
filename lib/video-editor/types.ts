@@ -121,7 +121,24 @@ export type VideoEditorMotionMode = "auto" | "fallback";
 
 export type VideoEditorExportQuality = "draft" | "standard" | "premium";
 
+export type VideoEditorPlatformPresetId =
+  | "tiktok"
+  | "instagram_reels"
+  | "youtube_shorts"
+  | "instagram_feed"
+  | "youtube_horizontal"
+  | "linkedin"
+  | "custom";
+
+export type VideoEditorSafeZone = {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+};
+
 export type VideoEditorConfig = {
+  platformPreset: VideoEditorPlatformPresetId;
   templateId: VideoEditorCommercialTemplate["id"];
   outputFormat: VideoEditorOutputFormat;
   exportQuality: VideoEditorExportQuality;
