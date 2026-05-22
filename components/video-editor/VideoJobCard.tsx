@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { getCommercialPresetById, isValidCommercialPreset } from "@/lib/video-editor/commercial-presets";
 import { normalizeVideoEditorConfig } from "@/lib/video-editor/config";
 import {
   getExportQualityProfile,
@@ -26,6 +27,9 @@ export function VideoJobCard({
   const template = getTemplateById(config.templateId);
   const formatProfile = getOutputFormatProfile(config.outputFormat);
   const qualityProfile = getExportQualityProfile(config.exportQuality);
+  const commercialPresetLabel = isValidCommercialPreset(config.commercialPreset)
+    ? getCommercialPresetById(config.commercialPreset).label
+    : "Personalizado";
   const canProcess = job.status === "uploaded" || job.status === "failed";
   const canDownload = job.status === "completed" && job.hasFinalVideo;
 
@@ -44,6 +48,7 @@ export function VideoJobCard({
       </div>
 
       <dl className="mt-5 grid gap-2 text-sm">
+        <Meta label="Preset" value={commercialPresetLabel} />
         <Meta label="Creado" value={formatDate(job.createdAt)} />
         <Meta
           label="Plataforma"

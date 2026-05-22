@@ -1,11 +1,13 @@
 "use client";
 
+import { CommercialPresetSelector } from "@/components/video-editor/CommercialPresetSelector";
 import { ExportQualitySelector } from "@/components/video-editor/ExportQualitySelector";
 import { FormatSelector } from "@/components/video-editor/FormatSelector";
 import { PlatformPresetSelector } from "@/components/video-editor/PlatformPresetSelector";
 import { SubtitleStyleSelector } from "@/components/video-editor/SubtitleStyleSelector";
 import { TemplateSelector } from "@/components/video-editor/TemplateSelector";
 import { ToggleOption } from "@/components/video-editor/ToggleOption";
+import type { VideoEditorCommercialPreset } from "@/lib/video-editor/commercial-presets";
 import type { VideoEditorConfig } from "@/lib/video-editor/types";
 import type { VideoEditorPlatformPreset } from "@/lib/video-editor/platform-presets";
 
@@ -30,6 +32,28 @@ export function EditorConfigPanel({
     });
   }
 
+  function applyCommercialPreset(preset: VideoEditorCommercialPreset) {
+    // "custom" pseudo-preset: just mark as custom, keep everything else
+    if ((preset.id as string) === "custom") {
+      onChange({ ...config, commercialPreset: "custom" });
+      return;
+    }
+    onChange({
+      ...config,
+      commercialPreset: preset.id,
+      templateId: preset.templateId,
+      outputFormat: preset.outputFormat,
+      exportQuality: preset.exportQuality,
+      subtitleStyle: preset.subtitleStyle,
+      motionEnabled: preset.motionEnabled,
+      trimSilences: preset.trimSilences,
+      removeFillers: preset.removeFillers,
+      // Only override hook/cta if in auto mode
+      ...(config.hookMode === "auto" ? { hookText: null } : {}),
+      ...(config.ctaMode === "auto" ? { ctaText: null } : {}),
+    });
+  }
+
   function updateWithCustom(value: Partial<VideoEditorConfig>) {
     onChange({ ...config, ...value, platformPreset: "custom" });
   }
@@ -49,6 +73,11 @@ export function EditorConfigPanel({
       </div>
 
       <div className="flex flex-col gap-6">
+        <CommercialPresetSelector
+          onSelect={applyCommercialPreset}
+          value={config.commercialPreset}
+        />
+
         <PlatformPresetSelector
           onSelect={applyPreset}
           value={config.platformPreset}

@@ -137,7 +137,21 @@ export type VideoEditorSafeZone = {
   right: number;
 };
 
+export type VideoEditorCommercialPresetId =
+  | "barberia_reels"
+  | "barberia_promo"
+  | "negocio_local_vitrina"
+  | "negocio_local_testimonio"
+  | "agencia_ia_demo"
+  | "agencia_ia_caso"
+  | "podcast_clip"
+  | "fotografo_portfolio"
+  | "restaurante_plato"
+  | "generico_viral"
+  | "custom";
+
 export type VideoEditorConfig = {
+  commercialPreset: VideoEditorCommercialPresetId;
   platformPreset: VideoEditorPlatformPresetId;
   templateId: VideoEditorCommercialTemplate["id"];
   outputFormat: VideoEditorOutputFormat;

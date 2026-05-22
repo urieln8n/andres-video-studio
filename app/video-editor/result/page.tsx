@@ -12,6 +12,10 @@ import {
 } from "@/lib/video-editor/job-store";
 import { resolveFinalVideoFile } from "@/lib/video-editor/file-response";
 import { getTemplateById } from "@/lib/video-editor/templates";
+import {
+  getCommercialPresetById,
+  isValidCommercialPreset,
+} from "@/lib/video-editor/commercial-presets";
 import { normalizeVideoEditorConfig } from "@/lib/video-editor/config";
 import {
   getExportQualityProfile,
@@ -73,9 +77,13 @@ export default async function VideoResultPage({
     config.platformPreset === "custom"
       ? "Custom"
       : getPlatformPresetById(config.platformPreset).badge;
+  const commercialPresetLabel = isValidCommercialPreset(config.commercialPreset)
+    ? getCommercialPresetById(config.commercialPreset).label
+    : "Personalizado";
 
   const details: VideoDetail[] = [
     { label: "Job ID", value: job.id },
+    { label: "Preset comercial", value: commercialPresetLabel },
     { label: "Nombre original", value: job.originalFileName },
     { label: "Archivo final", value: outputFileName },
     {
