@@ -121,6 +121,8 @@ export type VideoEditorSubtitleStyle = "premium" | "viral" | "minimal";
 
 export type VideoEditorTextMode = "auto" | "custom";
 
+export type VideoEditorMode = "standard" | "barberiaos";
+
 export type VideoEditorMotionMode = "auto" | "fallback";
 
 export type VideoEditorExportQuality = "draft" | "standard" | "premium";
@@ -146,6 +148,12 @@ export type VideoEditorSafeZone = {
 export type VideoEditorCommercialPresetId =
   | "barberia_reels"
   | "barberia_promo"
+  | "barberia_huecos_libres"
+  | "barberia_antes_despues"
+  | "barberia_qr_reservas"
+  | "barberia_combo_corte_barba"
+  | "barberia_reactivar_clientes"
+  | "barberia_pedir_resenas"
   | "negocio_local_vitrina"
   | "negocio_local_testimonio"
   | "agencia_ia_demo"
@@ -157,6 +165,7 @@ export type VideoEditorCommercialPresetId =
   | "custom";
 
 export type VideoEditorConfig = {
+  mode: VideoEditorMode;
   commercialPreset: VideoEditorCommercialPresetId;
   platformPreset: VideoEditorPlatformPresetId;
   templateId: VideoEditorCommercialTemplate["id"];

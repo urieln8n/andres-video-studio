@@ -11,16 +11,19 @@ const supportedFormats = ["mp4", "mov", "m4v", "webm"];
 const maxFileSize = 250 * 1024 * 1024;
 const acceptedFormats = supportedFormats.map((format) => `.${format}`).join(",");
 
-export function UploadDropzone() {
+export function UploadDropzone({
+  initialConfig = defaultVideoEditorConfig,
+}: {
+  initialConfig?: VideoEditorConfig;
+}) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [config, setConfig] = useState<VideoEditorConfig>(
-    defaultVideoEditorConfig,
-  );
+  const [config, setConfig] = useState<VideoEditorConfig>(initialConfig);
+  const isBarberiaOS = config.mode === "barberiaos";
 
   function selectFile(nextFile: File | undefined) {
     if (!nextFile) {
@@ -126,7 +129,9 @@ export function UploadDropzone() {
                 Subir vídeo
               </p>
               <p className="mt-1 text-sm leading-6 text-zinc-300">
-                Sube el clip original para preparar el job local.
+                {isBarberiaOS
+                  ? "Sube un vídeo de tu corte, local o promoción."
+                  : "Sube el clip original para preparar el job local."}
               </p>
             </div>
           </div>
@@ -159,7 +164,9 @@ export function UploadDropzone() {
           onClick={() => fileInputRef.current?.click()}
           type="button"
         >
-          Suelta tu vídeo aquí o haz click para elegir uno
+          {isBarberiaOS
+            ? "Suelta tu vídeo de barbería o haz click para elegirlo"
+            : "Suelta tu vídeo aquí o haz click para elegir uno"}
         </button>
         <p className="mt-4 text-sm uppercase text-zinc-400">
           Formatos permitidos

@@ -80,6 +80,10 @@ export default async function VideoResultPage({
   const commercialPresetLabel = isValidCommercialPreset(config.commercialPreset)
     ? getCommercialPresetById(config.commercialPreset).label
     : "Personalizado";
+  const finalHook =
+    job.finalCopy?.selectedHook || job.finalHookText || job.hookText || "Pendiente";
+  const finalCta =
+    job.finalCopy?.selectedCta || job.finalCtaText || job.ctaText || "Pendiente";
 
   const details: VideoDetail[] = [
     { label: "Job ID", value: job.id },
@@ -154,11 +158,11 @@ export default async function VideoResultPage({
     { label: "Estilo de subtítulos", value: config.subtitleStyle },
     {
       label: "Hook final usado",
-      value: job.finalCopy?.selectedHook || job.finalHookText || job.hookText || "Pendiente",
+      value: finalHook,
     },
     {
       label: "CTA final usado",
-      value: job.finalCopy?.selectedCta || job.finalCtaText || job.ctaText || "Pendiente",
+      value: finalCta,
     },
     {
       label: "Titulo final",
@@ -249,6 +253,38 @@ export default async function VideoResultPage({
             </div>
           </div>
 
+          {config.mode === "barberiaos" ? (
+            <section className="rounded-[8px] border border-[#efd8ad]/20 bg-[linear-gradient(135deg,rgba(214,178,110,0.13),rgba(255,255,255,0.05))] p-6 shadow-[0_28px_100px_-68px_rgba(0,0,0,1)] backdrop-blur-xl">
+              <p className="text-xs font-semibold uppercase text-[#efd8ad]">
+                Vídeo creado para BarberíaOS Content Studio
+              </p>
+              <h2 className="mt-3 text-2xl font-semibold text-white">
+                {commercialPresetLabel}
+              </h2>
+              <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+                <BarberiaResultLine label="Hook final" value={finalHook} />
+                <BarberiaResultLine label="CTA final" value={finalCta} />
+                <BarberiaResultLine label="Plataforma" value={presetLabel} />
+                <BarberiaResultLine
+                  label="Caso de uso comercial"
+                  value={commercialPresetLabel}
+                />
+              </dl>
+              <p className="mt-5 rounded-[8px] border border-white/10 bg-black/22 px-4 py-3 text-sm leading-6 text-zinc-200">
+                Publícalo en Instagram Reels, TikTok o WhatsApp y añade tu
+                link/QR de reservas.
+              </p>
+              {outputAvailable ? (
+                <a
+                  className="mt-5 inline-flex min-h-12 items-center justify-center rounded-[8px] border border-[#efd8ad]/32 bg-[linear-gradient(135deg,#efd8ad,#bb863e)] px-5 text-sm font-semibold text-zinc-950 transition hover:brightness-110"
+                  href={`/api/video-editor/jobs/${encodeURIComponent(job.id)}/download`}
+                >
+                  Descargar vídeo
+                </a>
+              ) : null}
+            </section>
+          ) : null}
+
           <VideoDetailsCard details={details} />
         </div>
       </section>
@@ -266,4 +302,19 @@ function formatSeconds(value: number | null | undefined) {
 
 function formatToggle(value: boolean) {
   return value ? "Activo" : "Inactivo";
+}
+
+function BarberiaResultLine({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-[8px] border border-white/[0.08] bg-black/20 px-4 py-3">
+      <dt className="text-zinc-500">{label}</dt>
+      <dd className="mt-2 break-words font-medium text-zinc-100">{value}</dd>
+    </div>
+  );
 }

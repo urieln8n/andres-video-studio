@@ -13,6 +13,7 @@ import type {
   VideoEditorCommercialPresetId,
   VideoEditorConfig,
   VideoEditorExportQuality,
+  VideoEditorMode,
   VideoEditorMotionMode,
   VideoEditorOutputFormat,
   VideoEditorPlatformPresetId,
@@ -25,9 +26,11 @@ export { isValidOutputFormat, isValidExportQuality, isValidPlatformPreset, isVal
 const subtitleStyles = ["premium", "viral", "minimal"] as const;
 const textModes = ["auto", "custom"] as const;
 const motionModes = ["auto", "fallback"] as const;
+const videoEditorModes = ["standard", "barberiaos"] as const;
 const maxOverlayTextLength = 180;
 
 export const defaultVideoEditorConfig: VideoEditorConfig = {
+  mode: "standard",
   commercialPreset: "custom",
   platformPreset: "instagram_reels",
   templateId: defaultTemplateId,
@@ -59,6 +62,11 @@ export function normalizeVideoEditorConfig(value: unknown): VideoEditorConfig {
   const ctaMode = readOption(candidate.ctaMode, textModes, "auto");
 
   return {
+    mode: readOption<VideoEditorMode>(
+      candidate.mode,
+      videoEditorModes,
+      defaultVideoEditorConfig.mode,
+    ),
     commercialPreset: isValidCommercialPreset(candidate.commercialPreset)
       ? (candidate.commercialPreset as VideoEditorCommercialPresetId)
       : defaultVideoEditorConfig.commercialPreset,

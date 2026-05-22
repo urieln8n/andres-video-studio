@@ -39,9 +39,16 @@ export function VideoJobCard({
     <article className="flex min-h-[31rem] flex-col rounded-[8px] border border-white/10 bg-white/[0.065] p-5 shadow-[0_32px_110px_-74px_rgba(0,0,0,1)] backdrop-blur-xl">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-medium uppercase text-[#d6b26e]">
-            {template.name}
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs font-medium uppercase text-[#d6b26e]">
+              {template.name}
+            </p>
+            {config.mode === "barberiaos" ? (
+              <span className="rounded-[8px] border border-[#efd8ad]/22 bg-[#d6b26e]/12 px-2 py-0.5 text-[10px] font-semibold uppercase text-[#efd8ad]">
+                BarberíaOS
+              </span>
+            ) : null}
+          </div>
           <h2 className="mt-2 break-words text-xl font-semibold text-white">
             {job.originalFileName}
           </h2>
