@@ -47,7 +47,13 @@ export function VideoEditorShell({
               </span>
             </Link>
 
-            <nav className="flex items-center gap-2">
+            <nav className="flex flex-wrap items-center justify-end gap-2">
+              <Link
+                href="/video-editor/dashboard"
+                className="inline-flex min-h-10 items-center rounded-[8px] border border-[#efd8ad]/20 bg-[#d6b26e]/10 px-3 text-xs font-semibold text-[#efd8ad] transition hover:border-[#efd8ad]/35 hover:bg-[#d6b26e]/18 sm:px-4 sm:text-sm"
+              >
+                Dashboard
+              </Link>
               <Link
                 href="/video-editor/clients"
                 className="inline-flex min-h-10 items-center rounded-[8px] border border-white/10 bg-black/20 px-3 text-xs font-semibold text-zinc-200 transition hover:border-[#efd8ad]/30 hover:text-[#efd8ad] sm:px-4 sm:text-sm"
