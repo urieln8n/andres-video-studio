@@ -4,6 +4,7 @@ import path from "node:path";
 import { ResultActions } from "@/components/video-editor/ResultActions";
 import { ResultVideoPreview } from "@/components/video-editor/ResultVideoPreview";
 import { VideoDetailsCard } from "@/components/video-editor/VideoDetailsCard";
+import { QrPreviewCard } from "@/components/video-editor/QrPreviewCard";
 import type { VideoDetail } from "@/lib/video-editor/mock-data";
 import {
   fileHasContent,
@@ -84,6 +85,12 @@ export default async function VideoResultPage({
     job.finalCopy?.selectedHook || job.finalHookText || job.hookText || "Pendiente";
   const finalCta =
     job.finalCopy?.selectedCta || job.finalCtaText || job.ctaText || "Pendiente";
+  const qrStatus =
+    !config.barberiaos.bookingUrl
+      ? "QR simulado"
+      : job.qrOverlayApplied
+        ? "QR aplicado"
+        : "Solo CTA textual";
 
   const details: VideoDetail[] = [
     { label: "Job ID", value: job.id },
@@ -282,6 +289,45 @@ export default async function VideoResultPage({
                   Descargar vídeo
                 </a>
               ) : null}
+            </section>
+          ) : null}
+
+          {config.mode === "barberiaos" ? (
+            <section className="grid gap-5 rounded-[8px] border border-white/10 bg-white/[0.06] p-6 shadow-[0_28px_100px_-68px_rgba(0,0,0,1)] backdrop-blur-xl md:grid-cols-[minmax(0,1fr)_minmax(250px,0.62fr)]">
+              <div>
+                <p className="text-xs font-semibold uppercase text-[#efd8ad]">
+                  Reserva por QR
+                </p>
+                <h2 className="mt-3 text-2xl font-semibold text-white">
+                  {config.barberiaos.barbershopName || "Tu barbería"}
+                </h2>
+                <dl className="mt-5 grid gap-3 text-sm">
+                  <BarberiaResultLine
+                    label="Link de reserva"
+                    value={config.barberiaos.bookingUrl || "Sin link real todavía"}
+                  />
+                  <BarberiaResultLine
+                    label="CTA QR"
+                    value={config.barberiaos.qrCtaText}
+                  />
+                  <BarberiaResultLine label="Estado QR" value={qrStatus} />
+                  <BarberiaResultLine
+                    label="Ruta QR local"
+                    value={job.qrPath || "No generado"}
+                  />
+                </dl>
+                <p className="mt-5 rounded-[8px] border border-white/10 bg-black/20 px-4 py-3 text-sm leading-6 text-zinc-200">
+                  Publica este vídeo y acompáñalo con tu link de reserva en la
+                  bio, WhatsApp o Google Business Profile.
+                </p>
+              </div>
+              {job.qrPath || !config.barberiaos.bookingUrl ? (
+                <QrPreviewCard barberiaos={config.barberiaos} />
+              ) : (
+                <p className="rounded-[8px] border border-white/10 bg-black/20 px-4 py-4 text-sm leading-6 text-zinc-300">
+                  El QR se preparará al renderizar con un link válido.
+                </p>
+              )}
             </section>
           ) : null}
 

@@ -1,6 +1,8 @@
 import { PreviewDeviceFrame } from "@/components/video-editor/PreviewDeviceFrame";
+import { getQrPreviewPositionClass, QrPreviewCard } from "@/components/video-editor/QrPreviewCard";
 import { SafeZoneOverlay } from "@/components/video-editor/SafeZoneOverlay";
 import type {
+  VideoEditorBarberiaOSConfig,
   VideoEditorCommercialPresetId,
   VideoEditorCommercialTemplate,
   VideoEditorCopyPreviewStage,
@@ -14,6 +16,8 @@ export function CopyVisualPreview({
   accentColor,
   commercialPresetId,
   hashtags,
+  barberiaos,
+  mode,
   outputFormat,
   platformBadge,
   platformPreset,
@@ -27,8 +31,10 @@ export function CopyVisualPreview({
   title,
 }: {
   accentColor: string;
+  barberiaos: VideoEditorBarberiaOSConfig;
   commercialPresetId: VideoEditorCommercialPresetId;
   hashtags: string;
+  mode: "standard" | "barberiaos";
   outputFormat: VideoEditorOutputFormat;
   platformBadge: string;
   platformPreset: VideoEditorPlatformPresetId;
@@ -122,6 +128,12 @@ export function CopyVisualPreview({
               {selectedCta || "Tu CTA aparecera aqui"}
             </p>
           </div>
+
+          {mode === "barberiaos" && previewStage === "cta" ? (
+            <div className={`absolute z-30 ${getQrPreviewPositionClass(barberiaos.qrPosition)}`}>
+              <QrPreviewCard barberiaos={barberiaos} compact />
+            </div>
+          ) : null}
         </div>
 
         <div className="absolute inset-x-3 bottom-3 z-20 flex items-end justify-between gap-3 text-[10px] text-white/65">

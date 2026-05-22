@@ -1,6 +1,12 @@
+"use client";
+
+import { useState } from "react";
+
 import { BarberiaOSHero } from "@/components/video-editor/BarberiaOSHero";
 import { BarberiaOSPreviewMock } from "@/components/video-editor/BarberiaOSPreviewMock";
+import { BarberiaOSQrPanel } from "@/components/video-editor/BarberiaOSQrPanel";
 import { BarberiaOSUseCaseCard } from "@/components/video-editor/BarberiaOSUseCaseCard";
+import { defaultVideoEditorConfig } from "@/lib/video-editor/config";
 import type { VideoEditorCommercialPresetId } from "@/lib/video-editor/types";
 
 const useCases = [
@@ -69,11 +75,20 @@ const useCases = [
 }>;
 
 export default function BarberiaOSContentStudioPage() {
+  const [barberiaos, setBarberiaos] = useState(
+    defaultVideoEditorConfig.barberiaos,
+  );
+
   return (
     <main className="flex flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
       <section className="mx-auto flex w-full max-w-7xl flex-col gap-7">
         <BarberiaOSHero />
-        <BarberiaOSPreviewMock />
+        <BarberiaOSQrPanel
+          barberiaos={barberiaos}
+          onChange={setBarberiaos}
+          showStartAction
+        />
+        <BarberiaOSPreviewMock barberiaos={barberiaos} />
         <section className="flex flex-col gap-5">
           <div className="max-w-3xl">
             <p className="text-xs font-medium uppercase text-[#d6b26e]">
@@ -85,7 +100,11 @@ export default function BarberiaOSContentStudioPage() {
           </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {useCases.map((useCase) => (
-              <BarberiaOSUseCaseCard key={useCase.presetId} {...useCase} />
+              <BarberiaOSUseCaseCard
+                key={useCase.presetId}
+                {...useCase}
+                barberiaos={barberiaos}
+              />
             ))}
           </div>
         </section>

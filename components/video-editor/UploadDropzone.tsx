@@ -66,6 +66,13 @@ export function UploadDropzone({
     formData.append("video", file);
 
     for (const [key, value] of Object.entries(config)) {
+      if (key === "barberiaos") {
+        continue;
+      }
+
+      formData.append(key, value === null ? "" : String(value));
+    }
+    for (const [key, value] of Object.entries(config.barberiaos)) {
       formData.append(key, value === null ? "" : String(value));
     }
 

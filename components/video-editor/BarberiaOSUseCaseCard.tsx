@@ -1,9 +1,14 @@
 import Link from "next/link";
 
-import type { VideoEditorCommercialPresetId } from "@/lib/video-editor/types";
+import { getBarberiaOSEditorHref } from "@/components/video-editor/BarberiaOSQrPanel";
+import type {
+  VideoEditorBarberiaOSConfig,
+  VideoEditorCommercialPresetId,
+} from "@/lib/video-editor/types";
 
 export function BarberiaOSUseCaseCard({
   badge,
+  barberiaos,
   cta,
   description,
   hook,
@@ -12,6 +17,7 @@ export function BarberiaOSUseCaseCard({
   title,
 }: {
   badge: string;
+  barberiaos: VideoEditorBarberiaOSConfig;
   cta: string;
   description: string;
   hook: string;
@@ -19,9 +25,7 @@ export function BarberiaOSUseCaseCard({
   subtitleStyle: "premium" | "viral";
   title: string;
 }) {
-  const href =
-    `/video-editor?mode=barberiaos&commercialPresetId=${presetId}` +
-    `&platformPreset=instagram_reels&templateId=barberia&subtitleStyle=${subtitleStyle}`;
+  const href = getBarberiaOSEditorHref(presetId, barberiaos, subtitleStyle);
 
   return (
     <article className="flex min-h-[24rem] flex-col rounded-[8px] border border-white/10 bg-white/[0.06] p-5 shadow-[0_30px_110px_-78px_rgba(0,0,0,1)] backdrop-blur-xl">

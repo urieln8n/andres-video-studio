@@ -17,10 +17,13 @@ import { isValidTemplateId } from "@/lib/video-editor/templates";
 type VideoEditorPageProps = {
   searchParams: Promise<{
     commercialPresetId?: string | string[];
+    barbershopName?: string | string[];
+    bookingUrl?: string | string[];
     mode?: string | string[];
     platformPreset?: string | string[];
     subtitleStyle?: string | string[];
     templateId?: string | string[];
+    qrCtaText?: string | string[];
   }>;
 };
 
@@ -72,6 +75,9 @@ function getInitialConfig(
   const platformPresetId = getSearchValue(searchParams.platformPreset);
   const templateId = getSearchValue(searchParams.templateId);
   const subtitleStyle = getSearchValue(searchParams.subtitleStyle);
+  const bookingUrl = getSearchValue(searchParams.bookingUrl);
+  const barbershopName = getSearchValue(searchParams.barbershopName);
+  const qrCtaText = getSearchValue(searchParams.qrCtaText);
   const commercialPreset = isValidCommercialPreset(commercialPresetId)
     ? getCommercialPresetById(commercialPresetId)
     : null;
@@ -90,6 +96,9 @@ function getInitialConfig(
           templateId: "barberia",
           outputFormat: "vertical_9_16",
           motionEnabled: true,
+          bookingUrl,
+          barbershopName,
+          qrCtaText,
         }
       : {}),
     ...(platformPresetId && platformPresetId !== "custom"

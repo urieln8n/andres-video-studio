@@ -48,6 +48,11 @@ export function VideoJobCard({
                 BarberíaOS
               </span>
             ) : null}
+            {config.mode === "barberiaos" && config.barberiaos.bookingUrl ? (
+              <span className="rounded-[8px] border border-emerald-200/20 bg-emerald-200/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-emerald-100">
+                QR
+              </span>
+            ) : null}
           </div>
           <h2 className="mt-2 break-words text-xl font-semibold text-white">
             {job.originalFileName}
@@ -58,6 +63,12 @@ export function VideoJobCard({
 
       <dl className="mt-5 grid gap-2 text-sm">
         <Meta label="Preset" value={commercialPresetLabel} />
+        {config.mode === "barberiaos" ? (
+          <Meta
+            label="Barbería"
+            value={config.barberiaos.barbershopName || "Tu barbería"}
+          />
+        ) : null}
         <Meta label="Creado" value={formatDate(job.createdAt)} />
         <Meta
           label="Plataforma"

@@ -171,6 +171,18 @@ export function getCopyPackRelativePath(jobId: string) {
   return path.posix.join("storage", "temp", `${jobId}_copy_pack.json`);
 }
 
+export function getQrAbsolutePath(jobId: string) {
+  return path.join(tempRoot, `${jobId}_qr.svg`);
+}
+
+export function getQrRelativePath(jobId: string) {
+  return path.posix.join("storage", "temp", `${jobId}_qr.svg`);
+}
+
+export function getQrOverlayTempAbsolutePath(jobId: string) {
+  return path.join(tempRoot, `${jobId}_qr_overlay.mp4`);
+}
+
 export function getProcessingLockAbsolutePath(jobId: string) {
   return path.join(tempRoot, `${jobId}.lock`);
 }
@@ -231,6 +243,9 @@ export function createUploadedJob(fileName: string, configValue?: unknown) {
     copyPack: null,
     copyPackPath: null,
     finalCopy: null,
+    qrPath: null,
+    qrOverlayApplied: null,
+    qrWarnings: [],
     config,
     overlayPath: null,
     finalVideoPath: null,

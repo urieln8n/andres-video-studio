@@ -123,6 +123,19 @@ export type VideoEditorTextMode = "auto" | "custom";
 
 export type VideoEditorMode = "standard" | "barberiaos";
 
+export type VideoEditorBarberiaOSQrPosition =
+  | "bottom_right"
+  | "bottom_center"
+  | "end_screen";
+
+export type VideoEditorBarberiaOSConfig = {
+  bookingUrl: string | null;
+  barbershopName: string | null;
+  showQrOverlay: boolean;
+  qrCtaText: string;
+  qrPosition: VideoEditorBarberiaOSQrPosition;
+};
+
 export type VideoEditorMotionMode = "auto" | "fallback";
 
 export type VideoEditorExportQuality = "draft" | "standard" | "premium";
@@ -166,6 +179,7 @@ export type VideoEditorCommercialPresetId =
 
 export type VideoEditorConfig = {
   mode: VideoEditorMode;
+  barberiaos: VideoEditorBarberiaOSConfig;
   commercialPreset: VideoEditorCommercialPresetId;
   platformPreset: VideoEditorPlatformPresetId;
   templateId: VideoEditorCommercialTemplate["id"];
@@ -247,6 +261,9 @@ export type VideoEditorJob = {
   copyPack?: VideoEditorCopyPack | null;
   copyPackPath?: string | null;
   finalCopy?: VideoEditorFinalCopy | null;
+  qrPath?: string | null;
+  qrOverlayApplied?: boolean | null;
+  qrWarnings?: string[];
   config?: VideoEditorConfig;
   overlayPath?: string | null;
   finalVideoPath?: string | null;

@@ -1,6 +1,7 @@
 "use client";
 
 import { CommercialPresetSelector } from "@/components/video-editor/CommercialPresetSelector";
+import { BarberiaOSQrPanel } from "@/components/video-editor/BarberiaOSQrPanel";
 import { ExportQualitySelector } from "@/components/video-editor/ExportQualitySelector";
 import { FormatSelector } from "@/components/video-editor/FormatSelector";
 import { PlatformPresetSelector } from "@/components/video-editor/PlatformPresetSelector";
@@ -73,6 +74,14 @@ export function EditorConfigPanel({
       </div>
 
       <div className="flex flex-col gap-6">
+        {config.mode === "barberiaos" ? (
+          <BarberiaOSQrPanel
+            barberiaos={config.barberiaos}
+            onChange={(barberiaos) => update({ barberiaos })}
+            showOverlayControls
+          />
+        ) : null}
+
         <CommercialPresetSelector
           onSelect={applyCommercialPreset}
           value={config.commercialPreset}

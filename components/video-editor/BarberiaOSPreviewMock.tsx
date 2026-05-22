@@ -1,4 +1,11 @@
-export function BarberiaOSPreviewMock() {
+import { getQrPreviewPositionClass, QrPreviewCard } from "@/components/video-editor/QrPreviewCard";
+import type { VideoEditorBarberiaOSConfig } from "@/lib/video-editor/types";
+
+export function BarberiaOSPreviewMock({
+  barberiaos,
+}: {
+  barberiaos: VideoEditorBarberiaOSConfig;
+}) {
   return (
     <section className="grid items-center gap-6 rounded-[8px] border border-white/10 bg-white/[0.055] p-5 shadow-[0_34px_120px_-82px_rgba(0,0,0,1)] backdrop-blur-xl sm:p-7 lg:grid-cols-[minmax(0,0.8fr)_minmax(320px,0.55fr)]">
       <div>
@@ -27,23 +34,8 @@ export function BarberiaOSPreviewMock() {
           <p className="absolute inset-x-[13%] bottom-[30%] rounded-[8px] border border-white/12 bg-black/65 px-3 py-2 text-center text-sm font-bold text-white">
             Tu corte listo para Reels
           </p>
-          <div className="absolute inset-x-[9%] bottom-[10%] grid grid-cols-[1fr_auto] items-center gap-3 rounded-[8px] border border-[#efd8ad]/32 bg-black/62 p-3 backdrop-blur">
-            <div>
-              <p className="text-xs font-semibold uppercase text-[#efd8ad]">
-                Reserva desde el QR
-              </p>
-              <p className="mt-1 text-sm font-semibold text-white">
-                Escanea y reserva tu cita
-              </p>
-            </div>
-            <span className="grid size-16 grid-cols-4 gap-0.5 rounded-[8px] border border-white/20 bg-white p-2">
-              {Array.from({ length: 16 }).map((_, index) => (
-                <span
-                  key={index}
-                  className={index % 3 === 0 || index === 5 ? "bg-black" : "bg-white"}
-                />
-              ))}
-            </span>
+          <div className={`absolute ${getQrPreviewPositionClass(barberiaos.qrPosition)}`}>
+            <QrPreviewCard barberiaos={barberiaos} compact />
           </div>
         </div>
       </div>

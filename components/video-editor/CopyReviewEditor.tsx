@@ -334,8 +334,10 @@ export function CopyReviewEditor({ jobId }: { jobId: string }) {
             <PreviewStageToggle onChange={setPreviewStage} value={previewStage} />
             <CopyVisualPreview
               accentColor={template.accentColor}
+              barberiaos={config.barberiaos}
               commercialPresetId={config.commercialPreset}
               hashtags={hashtags}
+              mode={config.mode}
               outputFormat={config.outputFormat}
               platformBadge={platformPreset?.badge || "Custom"}
               platformPreset={config.platformPreset}
