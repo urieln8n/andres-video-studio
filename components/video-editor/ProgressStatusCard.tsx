@@ -39,7 +39,7 @@ export function ProgressStatusCard({ job }: { job: VideoEditorJob | null }) {
             </div>
             <div className="h-3 overflow-hidden rounded-full border border-white/10 bg-black/35">
               <div
-                className="h-full rounded-full bg-[linear-gradient(90deg,#8f6736,#efd8ad,#c68a3d)] shadow-[0_0_30px_rgba(214,178,110,0.65)]"
+                className="h-full rounded-full bg-[linear-gradient(90deg,#8f6736,#efd8ad,#c68a3d)] shadow-[0_0_30px_rgba(214,178,110,0.65)] transition-all duration-700"
                 style={{ width: `${progress}%` }}
               />
             </div>

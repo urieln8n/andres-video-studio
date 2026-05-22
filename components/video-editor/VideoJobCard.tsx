@@ -50,7 +50,17 @@ export function VideoJobCard({
           ? "Vídeo final disponible para preview y descarga."
           : job.status === "processing"
             ? `Procesando: ${job.progress}% · ${job.currentStepLabel || job.currentStep}`
-            : "Todavía no hay un MP4 final disponible."}
+            : job.status === "failed" && job.errorMessage
+              ? job.errorMessage
+              : "Todavía no hay un MP4 final disponible."}
+        {job.status === "processing" ? (
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full border border-white/10 bg-black/35">
+            <div
+              className="h-full rounded-full bg-[linear-gradient(90deg,#8f6736,#efd8ad,#c68a3d)] transition-all duration-500"
+              style={{ width: `${job.progress}%` }}
+            />
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-auto grid gap-2 pt-5 sm:grid-cols-2">

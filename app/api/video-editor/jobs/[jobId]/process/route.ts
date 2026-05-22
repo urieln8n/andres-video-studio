@@ -8,7 +8,6 @@ import {
 } from "@/lib/video-editor/job-store";
 import {
   appendJobLog,
-  markJobFailed,
   markJobProcessing,
 } from "@/lib/video-editor/progress";
 
@@ -31,6 +30,7 @@ export async function POST(
     (await fileHasContent(getOutputAbsolutePath(job.id)))
   ) {
     return Response.json({
+      ok: true,
       job,
       message: "El vídeo ya fue procesado",
     });
@@ -39,6 +39,7 @@ export async function POST(
   if (job.status === "processing") {
     return Response.json(
       {
+        ok: true,
         job,
         message: "El vídeo ya se está procesando",
       },
@@ -49,6 +50,7 @@ export async function POST(
   if (!(await acquireProcessingLock(job.id))) {
     return Response.json(
       {
+        ok: true,
         job: await readJob(job.id),
         message: "El vídeo ya se está procesando",
       },
@@ -56,32 +58,25 @@ export async function POST(
     );
   }
 
-  try {
-    await markJobProcessing(job.id);
-    await appendJobLog(job.id, "Procesamiento iniciado.");
-    const processedJob = await processVideoEditorJob(job.id);
+  await markJobProcessing(job.id);
+  await appendJobLog(job.id, "Procesamiento iniciado.");
 
-    if (!processedJob) {
-      return Response.json({ error: "Job no encontrado." }, { status: 404 });
-    }
+  // Fire-and-forget: processing runs in the background and manages its own
+  // state (markJobCompleted / markJobFailed). The lock is released when done.
+  processVideoEditorJob(job.id)
+    .catch(() => {
+      // Errors are already persisted by markJobFailed inside the pipeline.
+    })
+    .finally(() => {
+      releaseProcessingLock(job.id);
+    });
 
-    return Response.json({ job: processedJob });
-  } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "No se pudo procesar el vídeo subtitulado con FFmpeg.";
-
-    await markJobFailed(job.id, message);
-
-    return Response.json(
-      {
-        error: message,
-        job: await readJob(job.id),
-      },
-      { status: 500 },
-    );
-  } finally {
-    await releaseProcessingLock(job.id);
-  }
+  return Response.json(
+    {
+      ok: true,
+      job: await readJob(job.id),
+      message: "Procesamiento iniciado",
+    },
+    { status: 202 },
+  );
 }

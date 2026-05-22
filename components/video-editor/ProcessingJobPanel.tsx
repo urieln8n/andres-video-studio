@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { LiveLogsPanel } from "@/components/video-editor/LiveLogsPanel";
 import { ProcessingTimeline } from "@/components/video-editor/ProcessingTimeline";
@@ -11,7 +12,9 @@ import { getTemplateById } from "@/lib/video-editor/templates";
 import { normalizeVideoEditorConfig } from "@/lib/video-editor/config";
 
 export function ProcessingJobPanel({ jobId }: { jobId: string }) {
+  const router = useRouter();
   const processingStartedRef = useRef(false);
+  const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [job, setJob] = useState<VideoEditorJob | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryAttempt, setRetryAttempt] = useState(0);
@@ -19,7 +22,7 @@ export function ProcessingJobPanel({ jobId }: { jobId: string }) {
   useEffect(() => {
     let active = true;
 
-    async function processJob() {
+    async function startProcessing() {
       try {
         const response = await fetch(
           `/api/video-editor/jobs/${encodeURIComponent(jobId)}/process`,
@@ -30,11 +33,11 @@ export function ProcessingJobPanel({ jobId }: { jobId: string }) {
           job?: VideoEditorJob;
         };
 
-        if (!response.ok || !payload.job) {
-          throw new Error(payload.error || "No se pudo procesar el job.");
+        if (!response.ok && response.status !== 202) {
+          throw new Error(payload.error || "No se pudo iniciar el procesamiento.");
         }
 
-        if (active) {
+        if (active && payload.job) {
           setJob(payload.job);
           setError(null);
         }
@@ -43,17 +46,18 @@ export function ProcessingJobPanel({ jobId }: { jobId: string }) {
           setError(
             processError instanceof Error
               ? processError.message
-              : "No se pudo procesar el job.",
+              : "No se pudo iniciar el procesamiento.",
           );
         }
       }
     }
 
-    async function loadJob() {
+    async function pollJob() {
       try {
-        const response = await fetch(`/api/video-editor/jobs/${jobId}`, {
-          cache: "no-store",
-        });
+        const response = await fetch(
+          `/api/video-editor/jobs/${encodeURIComponent(jobId)}`,
+          { cache: "no-store" },
+        );
         const payload = (await response.json()) as {
           error?: string;
           job?: VideoEditorJob;
@@ -78,18 +82,34 @@ export function ProcessingJobPanel({ jobId }: { jobId: string }) {
       }
     }
 
-    loadJob();
+    pollJob();
     if (!processingStartedRef.current) {
       processingStartedRef.current = true;
-      processJob();
+      startProcessing();
     }
-    const timer = window.setInterval(loadJob, 1500);
+    const timer = window.setInterval(pollJob, 1500);
 
     return () => {
       active = false;
       window.clearInterval(timer);
     };
   }, [jobId, retryAttempt]);
+
+  // Auto-redirect to result page 2 seconds after completion
+  useEffect(() => {
+    if (job?.status === "completed") {
+      redirectTimerRef.current = setTimeout(() => {
+        router.push(`/video-editor/result?jobId=${encodeURIComponent(jobId)}`);
+      }, 2000);
+    }
+
+    return () => {
+      if (redirectTimerRef.current) {
+        clearTimeout(redirectTimerRef.current);
+        redirectTimerRef.current = null;
+      }
+    };
+  }, [job?.status, jobId, router]);
 
   const template = getTemplateById(job?.templateId);
   const config = normalizeVideoEditorConfig(job?.config ?? {
@@ -138,7 +158,19 @@ export function ProcessingJobPanel({ jobId }: { jobId: string }) {
 
       {job?.status === "failed" && job.errorMessage ? (
         <div className="rounded-[8px] border border-rose-300/20 bg-rose-300/10 px-5 py-4 text-rose-100">
-          {job.errorMessage}
+          <p className="text-xs font-medium uppercase text-rose-300">Error</p>
+          <p className="mt-2">{job.errorMessage}</p>
+        </div>
+      ) : null}
+
+      {job?.status === "completed" ? (
+        <div className="rounded-[8px] border border-emerald-300/20 bg-emerald-300/10 px-5 py-4 text-emerald-100">
+          <p className="text-xs font-medium uppercase text-emerald-300">
+            Completado
+          </p>
+          <p className="mt-2">
+            Redirigiendo al resultado...
+          </p>
         </div>
       ) : null}
 
