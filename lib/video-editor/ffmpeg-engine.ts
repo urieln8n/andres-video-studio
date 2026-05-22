@@ -28,7 +28,11 @@ import {
   createFillerPlan,
   writeFillerPlan,
 } from "@/lib/video-editor/filler-detector";
-import { renderCommercialOverlays } from "@/lib/video-editor/overlay-engine";
+import { prepareMotionOverlays } from "@/lib/video-editor/motion-engine";
+import {
+  composeMotionOverlayVideos,
+  renderCommercialOverlays,
+} from "@/lib/video-editor/overlay-engine";
 import { detectVideoSilences } from "@/lib/video-editor/silence-detector";
 import { createPremiumAssSubtitles } from "@/lib/video-editor/subtitle-engine";
 import { transcribeAudioWithWhisper } from "@/lib/video-editor/transcription-engine";
@@ -80,6 +84,7 @@ async function runVideoEditorJob(jobId: string) {
     job.transcriptPath &&
     job.editPlanPath &&
     job.finalVideoPath &&
+    job.motionEngine &&
     (await fileHasContent(outputAbsolutePath))
   ) {
     return job;
@@ -103,6 +108,10 @@ async function runVideoEditorJob(jobId: string) {
           ctaText: currentJob.ctaText,
           overlayPath: null,
           finalVideoPath: null,
+          motionEngine: null,
+          hookOverlayPath: null,
+          ctaOverlayPath: null,
+          motionWarnings: [],
           cleanVideoPath: null,
           originalDuration: null,
           finalEstimatedDuration: null,
@@ -424,30 +433,112 @@ async function runVideoEditorJob(jobId: string) {
       editPlan.finalEstimatedDuration - fillerPlan.removedSeconds,
     );
     let overlayPath: string | null = null;
+    let motionEngine: VideoEditorJob["motionEngine"] = "fallback";
+    let hookOverlayPath: string | null = null;
+    let ctaOverlayPath: string | null = null;
+    const motionWarnings: string[] = [];
+
+    await updateJob(job.id, (currentJob) =>
+      appendJobLog(
+        {
+          ...currentJob,
+          progress: 97,
+          currentStep: "Preparando motion graphics premium",
+        },
+        "Preparando motion graphics premium",
+      ),
+    );
+
+    const motion = await prepareMotionOverlays(
+      commercialJob,
+      commercialTemplate,
+      async (message) => {
+        await updateJob(job.id, (currentJob) =>
+          appendJobLog(currentJob, message),
+        );
+      },
+    );
+
+    motionWarnings.push(...motion.warnings);
 
     try {
-      const overlay = await renderCommercialOverlays({
-        jobId: job.id,
-        inputAbsolutePath: subtitledAbsolutePath,
-        outputAbsolutePath,
-        duration: commercialDuration,
-        template: commercialTemplate,
-      });
+      if (motion.engine === "hyperframes" && motion.hook && motion.cta) {
+        await updateJob(job.id, (currentJob) =>
+          appendJobLog(
+            {
+              ...currentJob,
+              currentStep: "Componiendo overlays con FFmpeg",
+            },
+            "Componiendo overlays con FFmpeg",
+          ),
+        );
+        await composeMotionOverlayVideos({
+          inputAbsolutePath: subtitledAbsolutePath,
+          hookOverlayAbsolutePath: motion.hook.absolutePath,
+          ctaOverlayAbsolutePath: motion.cta.absolutePath,
+          outputAbsolutePath,
+          duration: commercialDuration,
+        });
 
-      overlayPath = overlay.overlayRelativePath;
+        motionEngine = "hyperframes";
+        hookOverlayPath = motion.hook.relativePath;
+        ctaOverlayPath = motion.cta.relativePath;
+      } else {
+        await updateJob(job.id, (currentJob) =>
+          appendJobLog(
+            currentJob,
+            "HyperFrames no disponible, usando fallback seguro",
+          ),
+        );
+        const overlay = await renderCommercialOverlays({
+          jobId: job.id,
+          inputAbsolutePath: subtitledAbsolutePath,
+          outputAbsolutePath,
+          duration: commercialDuration,
+          template: commercialTemplate,
+        });
+
+        overlayPath = overlay.overlayRelativePath;
+      }
     } catch (error) {
       const warning =
         error instanceof Error
-          ? error.message
-          : "FFmpeg no pudo aplicar el overlay comercial.";
+          ? `Motion overlay falló; usando fallback FFmpeg. ${error.message}`
+          : "Motion overlay falló; usando fallback FFmpeg.";
 
-      await copyFile(subtitledAbsolutePath, outputAbsolutePath);
+      motionWarnings.push(warning);
       await updateJob(job.id, (currentJob) =>
-        appendJobLog(
-          currentJob,
-          `Warning: overlay comercial omitido. ${warning}`,
-        ),
+        appendJobLog(currentJob, `Warning: ${warning}`),
       );
+
+      try {
+        const overlay = await renderCommercialOverlays({
+          jobId: job.id,
+          inputAbsolutePath: subtitledAbsolutePath,
+          outputAbsolutePath,
+          duration: commercialDuration,
+          template: commercialTemplate,
+        });
+
+        overlayPath = overlay.overlayRelativePath;
+        motionEngine = "fallback";
+        hookOverlayPath = null;
+        ctaOverlayPath = null;
+      } catch (fallbackError) {
+        const fallbackWarning =
+          fallbackError instanceof Error
+            ? fallbackError.message
+            : "FFmpeg no pudo aplicar el overlay comercial.";
+
+        motionWarnings.push(fallbackWarning);
+        await copyFile(subtitledAbsolutePath, outputAbsolutePath);
+        await updateJob(job.id, (currentJob) =>
+          appendJobLog(
+            currentJob,
+            `Warning: overlay comercial omitido. ${fallbackWarning}`,
+          ),
+        );
+      }
     }
 
     if (!(await fileHasContent(outputAbsolutePath))) {
@@ -461,12 +552,16 @@ async function runVideoEditorJob(jobId: string) {
           outputPath: getOutputRelativePath(currentJob.id),
           finalVideoPath: getOutputRelativePath(currentJob.id),
           overlayPath,
+          motionEngine,
+          hookOverlayPath,
+          ctaOverlayPath,
+          motionWarnings,
           status: "completed",
           progress: 100,
-          currentStep: "Render comercial completado",
+          currentStep: "Motion graphics completados",
           errorMessage: undefined,
         },
-        "Render comercial completado",
+        "Motion graphics completados",
       ),
     );
   } catch (error) {

@@ -71,6 +71,58 @@ export async function renderCommercialOverlays({
   };
 }
 
+export async function composeMotionOverlayVideos({
+  inputAbsolutePath,
+  hookOverlayAbsolutePath,
+  ctaOverlayAbsolutePath,
+  outputAbsolutePath,
+  duration,
+}: {
+  inputAbsolutePath: string;
+  hookOverlayAbsolutePath: string;
+  ctaOverlayAbsolutePath: string;
+  outputAbsolutePath: string;
+  duration: number;
+}) {
+  const ctaStart = Math.max(0, duration - ctaSeconds).toFixed(3);
+  const filterComplex =
+    `[1:v]format=rgba[hook];` +
+    `[2:v]format=rgba,setpts=PTS-STARTPTS+${ctaStart}/TB[cta];` +
+    `[0:v][hook]overlay=eof_action=pass:format=auto[hooked];` +
+    `[hooked][cta]overlay=eof_action=pass:format=auto[commercial]`;
+
+  await runFfmpeg([
+    "-y",
+    "-i",
+    inputAbsolutePath,
+    "-i",
+    hookOverlayAbsolutePath,
+    "-i",
+    ctaOverlayAbsolutePath,
+    "-filter_complex",
+    filterComplex,
+    "-map",
+    "[commercial]",
+    "-map",
+    "0:a?",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "23",
+    "-c:a",
+    "aac",
+    "-movflags",
+    "+faststart",
+    outputAbsolutePath,
+  ]);
+
+  if (!(await fileHasContent(outputAbsolutePath))) {
+    throw new Error("FFmpeg no creó el vídeo con motion overlays.");
+  }
+}
+
 function createCommercialFilterGraph(
   template: VideoEditorCommercialTemplate,
   duration: number,

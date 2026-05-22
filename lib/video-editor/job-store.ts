@@ -98,6 +98,22 @@ export function getCommercialOverlayRelativePath(jobId: string) {
   );
 }
 
+export function getMotionHookOverlayAbsolutePath(jobId: string) {
+  return path.join(tempRoot, `${jobId}_hook_overlay.webm`);
+}
+
+export function getMotionHookOverlayRelativePath(jobId: string) {
+  return path.posix.join("storage", "temp", `${jobId}_hook_overlay.webm`);
+}
+
+export function getMotionCtaOverlayAbsolutePath(jobId: string) {
+  return path.join(tempRoot, `${jobId}_cta_overlay.webm`);
+}
+
+export function getMotionCtaOverlayRelativePath(jobId: string) {
+  return path.posix.join("storage", "temp", `${jobId}_cta_overlay.webm`);
+}
+
 export function getVerticalTempAbsolutePath(jobId: string) {
   return path.join(tempRoot, `${jobId}_vertical.mp4`);
 }
@@ -183,6 +199,10 @@ export function createUploadedJob(fileName: string, templateId?: unknown) {
     ctaText: template.cta,
     overlayPath: null,
     finalVideoPath: null,
+    motionEngine: null,
+    hookOverlayPath: null,
+    ctaOverlayPath: null,
+    motionWarnings: [],
     originalDuration: null,
     finalEstimatedDuration: null,
     removedSeconds: null,

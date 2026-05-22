@@ -1,0 +1,107 @@
+<!doctype html>
+<html
+  data-composition-variables='[
+    {"id":"text","type":"string","label":"Hook","default":"Tu vídeo ya se edita en automático"},
+    {"id":"accent","type":"color","label":"Accent","default":"#D6A84F"}
+  ]'
+>
+  <body>
+    <div
+      id="premium-hook"
+      data-composition-id="premium-hook"
+      data-width="1080"
+      data-height="1920"
+    >
+      <section
+        class="clip hero"
+        data-start="0"
+        data-duration="2.5"
+        data-track-index="1"
+      >
+        <span class="bar"></span>
+        <h1 id="hook-text"></h1>
+      </section>
+    </div>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: transparent;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      #premium-hook {
+        position: relative;
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        color: #fff;
+        background: transparent;
+      }
+
+      .hero {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        gap: 34px;
+        width: 100%;
+        height: 100%;
+        padding: 152px 104px 0;
+        animation-name: hook-in;
+        animation-duration: 720ms;
+        animation-timing-function: cubic-bezier(0.18, 0.82, 0.22, 1);
+        animation-iteration-count: 1;
+        animation-fill-mode: both;
+      }
+
+      .bar {
+        width: 274px;
+        height: 12px;
+        border-radius: 999px;
+        background: var(--accent);
+        box-shadow: 0 0 44px color-mix(in srgb, var(--accent) 62%, transparent);
+      }
+
+      h1 {
+        max-width: 872px;
+        margin: 0;
+        padding: 42px 48px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        background: linear-gradient(
+          135deg,
+          rgba(12, 12, 14, 0.72),
+          rgba(12, 12, 14, 0.42)
+        );
+        box-shadow:
+          0 38px 128px rgba(0, 0, 0, 0.48),
+          inset 0 1px rgba(255, 255, 255, 0.16);
+        font-size: 78px;
+        font-weight: 800;
+        line-height: 1.04;
+        letter-spacing: 0;
+        text-wrap: balance;
+        text-shadow: 0 7px 22px rgba(0, 0, 0, 0.92);
+      }
+
+      @keyframes hook-in {
+        from {
+          opacity: 0;
+          transform: translateY(-46px) scale(0.985);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+    </style>
+    <script>
+      const vars = window.__hyperframes.getVariables();
+      document.documentElement.style.setProperty("--accent", vars.accent);
+      document.getElementById("hook-text").textContent = vars.text;
+    </script>
+  </body>
+</html>

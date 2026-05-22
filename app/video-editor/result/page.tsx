@@ -98,6 +98,19 @@ export default async function VideoResultPage({
     { label: "Plantilla usada", value: template.name },
     { label: "Hook usado", value: job.hookText || "Pendiente" },
     { label: "CTA usado", value: job.ctaText || "Pendiente" },
+    { label: "Motor motion", value: job.motionEngine || "Pendiente" },
+    {
+      label: "Hook overlay motion",
+      value: job.hookOverlayPath || "Fallback",
+    },
+    {
+      label: "CTA overlay motion",
+      value: job.ctaOverlayPath || "Fallback",
+    },
+    {
+      label: "Warnings motion",
+      value: job.motionWarnings?.join(" ") || "Sin warnings",
+    },
     { label: "Overlay comercial", value: job.overlayPath || "Fallback" },
     {
       label: "Vídeo final comercial",

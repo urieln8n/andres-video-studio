@@ -89,6 +89,8 @@ export type VideoEditorCommercialTemplate = {
   style: VideoEditorCommercialTemplateStyle;
 };
 
+export type VideoEditorMotionEngine = "hyperframes" | "fallback";
+
 export type VideoEditorJob = {
   id: string;
   originalFileName: string;
@@ -112,6 +114,10 @@ export type VideoEditorJob = {
   ctaText?: string | null;
   overlayPath?: string | null;
   finalVideoPath?: string | null;
+  motionEngine?: VideoEditorMotionEngine | null;
+  hookOverlayPath?: string | null;
+  ctaOverlayPath?: string | null;
+  motionWarnings?: string[];
   originalDuration?: number | null;
   finalEstimatedDuration?: number | null;
   removedSeconds?: number | null;
