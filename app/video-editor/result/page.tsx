@@ -5,6 +5,7 @@ import { ResultActions } from "@/components/video-editor/ResultActions";
 import { ResultVideoPreview } from "@/components/video-editor/ResultVideoPreview";
 import { VideoDetailsCard } from "@/components/video-editor/VideoDetailsCard";
 import { QrPreviewCard } from "@/components/video-editor/QrPreviewCard";
+import { PublishingPackCard } from "@/components/video-editor/PublishingPackCard";
 import type { VideoDetail } from "@/lib/video-editor/mock-data";
 import {
   fileHasContent,
@@ -23,6 +24,7 @@ import {
   getOutputFormatProfile,
 } from "@/lib/video-editor/export-profiles";
 import { getPlatformPresetById } from "@/lib/video-editor/platform-presets";
+import { loadPublishingPack } from "@/lib/video-editor/publishing-pack-engine";
 
 type VideoResultPageProps = {
   searchParams: Promise<{ jobId?: string | string[] }>;
@@ -56,6 +58,7 @@ export default async function VideoResultPage({
   }
 
   const finalVideo = await resolveFinalVideoFile(job);
+  const publishingPack = await loadPublishingPack(job.id);
   const outputAvailable = Boolean(finalVideo);
   const subtitlesAvailable = Boolean(
     job.subtitlesPath && (await fileHasContent(getSubtitleAbsolutePath(job.id))),
@@ -330,6 +333,23 @@ export default async function VideoResultPage({
               )}
             </section>
           ) : null}
+
+          {publishingPack ? (
+            <PublishingPackCard pack={publishingPack} />
+          ) : (
+            <section className="rounded-[8px] border border-white/10 bg-white/[0.06] p-6 shadow-[0_28px_100px_-68px_rgba(0,0,0,1)] backdrop-blur-xl">
+              <p className="text-xs font-semibold uppercase text-[#efd8ad]">
+                Pack listo para publicar
+              </p>
+              <h2 className="mt-3 text-2xl font-semibold text-white">
+                El paquete de publicación aún no está disponible.
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-zinc-300">
+                Los jobs nuevos lo generan al terminar el render final. Este
+                resultado conserva el vídeo, preview, descarga y copy existente.
+              </p>
+            </section>
+          )}
 
           <VideoDetailsCard details={details} />
         </div>

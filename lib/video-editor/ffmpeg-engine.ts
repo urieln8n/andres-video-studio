@@ -42,6 +42,7 @@ import {
   writeFillerPlan,
 } from "@/lib/video-editor/filler-detector";
 import { prepareMotionOverlays } from "@/lib/video-editor/motion-engine";
+import { createAndSavePublishingPack } from "@/lib/video-editor/publishing-pack-engine";
 import {
   composeMotionOverlayVideos,
   renderCommercialOverlays,
@@ -144,6 +145,11 @@ async function runVideoEditorJob(jobId: string, mode: VideoEditorProcessMode) {
           ctaText: currentJob.ctaText,
           overlayPath: null,
           finalVideoPath: null,
+          publishingPackPath: null,
+          publishingPackCreated: false,
+          publishingTitle: null,
+          publishingHashtags: [],
+          publishingProvider: null,
           motionEngine: null,
           hookOverlayPath: null,
           ctaOverlayPath: null,
@@ -793,6 +799,16 @@ async function runVideoEditorJob(jobId: string, mode: VideoEditorProcessMode) {
     if (fileSizeLabel) {
       await appendProgressLog(job.id, `Tamaño final: ${fileSizeLabel}`);
     }
+    await appendProgressLog(job.id, "Generando paquete de publicación");
+    await createAndSavePublishingPack(
+      exportedJob ?? {
+        ...job,
+        finalVideoPath: getOutputRelativePath(job.id),
+      },
+    );
+    await appendProgressLog(job.id, "Caption de Instagram generado");
+    await appendProgressLog(job.id, "Texto de WhatsApp generado");
+    await appendProgressLog(job.id, "Checklist de publicación generado");
     await appendProgressLog(job.id, "Render final completado");
     return (await markJobCompleted(job.id)) ?? exportedJob;
   } catch (error) {

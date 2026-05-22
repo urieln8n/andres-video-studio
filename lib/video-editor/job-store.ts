@@ -171,6 +171,14 @@ export function getCopyPackRelativePath(jobId: string) {
   return path.posix.join("storage", "temp", `${jobId}_copy_pack.json`);
 }
 
+export function getPublishingPackAbsolutePath(jobId: string) {
+  return path.join(tempRoot, `${jobId}_publishing_pack.json`);
+}
+
+export function getPublishingPackRelativePath(jobId: string) {
+  return path.posix.join("storage", "temp", `${jobId}_publishing_pack.json`);
+}
+
 export function getQrAbsolutePath(jobId: string) {
   return path.join(tempRoot, `${jobId}_qr.svg`);
 }
@@ -243,6 +251,11 @@ export function createUploadedJob(fileName: string, configValue?: unknown) {
     copyPack: null,
     copyPackPath: null,
     finalCopy: null,
+    publishingPackPath: null,
+    publishingPackCreated: false,
+    publishingTitle: null,
+    publishingHashtags: [],
+    publishingProvider: null,
     qrPath: null,
     qrOverlayApplied: null,
     qrWarnings: [],

@@ -53,6 +53,11 @@ export function VideoJobCard({
                 QR
               </span>
             ) : null}
+            {job.publishingPackCreated ? (
+              <span className="rounded-[8px] border border-amber-100/20 bg-amber-100/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-100">
+                Pack
+              </span>
+            ) : null}
           </div>
           <h2 className="mt-2 break-words text-xl font-semibold text-white">
             {job.originalFileName}
@@ -146,6 +151,14 @@ export function VideoJobCard({
           >
             Descargar
           </a>
+        ) : null}
+        {canDownload && job.publishingPackCreated ? (
+          <Link
+            href={`/video-editor/result?jobId=${encodeURIComponent(job.id)}`}
+            className="inline-flex min-h-11 items-center justify-center rounded-[8px] border border-[#efd8ad]/25 bg-[#d6b26e]/12 px-3 text-sm font-semibold text-[#efd8ad] transition hover:bg-[#d6b26e]/22"
+          >
+            Ver pack
+          </Link>
         ) : null}
         <button
           className="inline-flex min-h-11 items-center justify-center rounded-[8px] border border-rose-200/15 bg-rose-200/[0.08] px-3 text-sm font-semibold text-rose-100 transition hover:bg-rose-200/[0.14] disabled:cursor-not-allowed disabled:opacity-50"

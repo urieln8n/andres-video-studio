@@ -216,6 +216,23 @@ export type VideoEditorFinalCopy = {
   approvedAt: string;
 };
 
+export type VideoEditorPublishingPack = {
+  id: string;
+  jobId: string;
+  provider: "local_rules" | "ai" | "manual";
+  title: string;
+  instagramCaption: string;
+  tiktokCaption: string;
+  youtubeShortsDescription: string;
+  whatsappText: string;
+  instagramStoryText: string;
+  hashtags: string[];
+  postingChecklist: string[];
+  platformTips: string[];
+  barberiaosTips?: string[];
+  createdAt: string;
+};
+
 export type VideoEditorJobMetrics = {
   originalDuration?: number | null;
   finalEstimatedDuration?: number | null;
@@ -261,6 +278,11 @@ export type VideoEditorJob = {
   copyPack?: VideoEditorCopyPack | null;
   copyPackPath?: string | null;
   finalCopy?: VideoEditorFinalCopy | null;
+  publishingPackPath?: string | null;
+  publishingPackCreated?: boolean;
+  publishingTitle?: string | null;
+  publishingHashtags?: string[];
+  publishingProvider?: VideoEditorPublishingPack["provider"] | null;
   qrPath?: string | null;
   qrOverlayApplied?: boolean | null;
   qrWarnings?: string[];
