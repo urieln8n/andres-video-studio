@@ -43,7 +43,8 @@ export default async function VideoCopyPage({
             Revisa el copy antes de renderizar
           </h1>
           <p className="mt-4 max-w-3xl text-base leading-7 text-zinc-300 sm:text-lg">
-            Elige el hook, CTA y texto final que se usara en tu video.
+            Elige el hook, CTA y texto final que se usara en tu video antes de
+            revisar su mock visual.
           </p>
         </header>
 

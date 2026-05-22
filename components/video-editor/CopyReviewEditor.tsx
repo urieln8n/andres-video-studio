@@ -4,12 +4,24 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { CopyVisualPreview } from "@/components/video-editor/CopyVisualPreview";
 import { HashtagEditor } from "@/components/video-editor/HashtagEditor";
 import { HookOptionCard } from "@/components/video-editor/HookOptionCard";
+import { PreviewStageToggle } from "@/components/video-editor/PreviewStageToggle";
+import {
+  getCommercialPresetById,
+  isValidCommercialPreset,
+} from "@/lib/video-editor/commercial-presets";
+import { normalizeVideoEditorConfig } from "@/lib/video-editor/config";
+import { getPlatformPresetById } from "@/lib/video-editor/platform-presets";
+import { getTemplateById } from "@/lib/video-editor/templates";
 import type {
   VideoEditorCopyPack,
+  VideoEditorCopyPreviewStage,
   VideoEditorFinalCopy,
   VideoEditorJob,
+  VideoEditorOutputFormat,
+  VideoEditorSafeZone,
 } from "@/lib/video-editor/types";
 
 type CopyResponse = {
@@ -30,6 +42,8 @@ export function CopyReviewEditor({ jobId }: { jobId: string }) {
   const [description, setDescription] = useState("");
   const [hashtags, setHashtags] = useState("");
   const [source, setSource] = useState<VideoEditorFinalCopy["source"]>("generated");
+  const [previewStage, setPreviewStage] =
+    useState<VideoEditorCopyPreviewStage>("hook");
   const [busy, setBusy] = useState<"save" | "render" | "auto" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -203,12 +217,24 @@ export function CopyReviewEditor({ jobId }: { jobId: string }) {
     return <Notice tone="neutral">Cargando copy local...</Notice>;
   }
 
+  const config = normalizeVideoEditorConfig(job?.config ?? {
+    templateId: job?.templateId,
+  });
+  const platformPreset =
+    config.platformPreset === "custom"
+      ? null
+      : getPlatformPresetById(config.platformPreset);
+  const commercialPreset = isValidCommercialPreset(config.commercialPreset)
+    ? getCommercialPresetById(config.commercialPreset)
+    : null;
+  const template = getTemplateById(config.templateId);
+
   return (
     <section className="flex flex-col gap-6">
       {error ? <Notice tone="error">{error}</Notice> : null}
       {message ? <Notice tone="ok">{message}</Notice> : null}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.18fr)_minmax(360px,0.82fr)]">
         <div className="flex flex-col gap-6">
           <CopySection
             description="Selecciona una base y ajusta el texto que entrara al overlay inicial."
@@ -303,39 +329,61 @@ export function CopyReviewEditor({ jobId }: { jobId: string }) {
           </CopySection>
         </div>
 
-        <aside className="flex flex-col gap-5">
-          <CopySection
-            description="Contexto disponible para decidir el copy final."
-            title="Resumen del video"
-          >
-            <p className="rounded-[8px] border border-white/10 bg-black/20 px-4 py-4 text-sm leading-7 text-zinc-200">
-              {copyPack.summary || "No hay summary disponible para este job."}
-            </p>
-            <dl className="grid gap-3 text-sm">
-              <Summary label="Estado" value={job?.status || "pendiente"} />
-              <Summary
-                label="Fuente"
-                value={source === "edited" ? "Copy editado manualmente" : "Copy automatico"}
-              />
-            </dl>
-          </CopySection>
+        <aside className="flex flex-col gap-5 xl:sticky xl:top-6 xl:self-start">
+          <div className="flex flex-col gap-4 rounded-[8px] border border-white/10 bg-white/[0.055] p-4 backdrop-blur-xl">
+            <PreviewStageToggle onChange={setPreviewStage} value={previewStage} />
+            <CopyVisualPreview
+              accentColor={template.accentColor}
+              commercialPresetId={config.commercialPreset}
+              hashtags={hashtags}
+              outputFormat={config.outputFormat}
+              platformBadge={platformPreset?.badge || "Custom"}
+              platformPreset={config.platformPreset}
+              presetBadge={commercialPreset?.badge || "Personalizado"}
+              previewStage={previewStage}
+              safeZone={platformPreset?.safeZone || getFallbackSafeZone(config.outputFormat)}
+              selectedCta={cta}
+              selectedHook={hook}
+              subtitleStyle={config.subtitleStyle}
+              templateId={config.templateId}
+              title={title}
+            />
+          </div>
 
-          <div className="grid gap-3 rounded-[8px] border border-white/10 bg-white/[0.07] p-5 shadow-[0_30px_100px_-66px_rgba(0,0,0,1)] backdrop-blur-xl">
-            <ActionButton busy={busy === "save"} onClick={handleSave}>
-              Guardar copy
-            </ActionButton>
-            <ActionButton busy={busy === "render"} onClick={handleRender} primary>
-              Renderizar video final
-            </ActionButton>
-            <Link
-              className="inline-flex min-h-12 items-center justify-center rounded-[8px] border border-white/12 bg-white/[0.07] px-4 text-sm font-semibold text-white transition hover:bg-white/[0.12]"
-              href={`/video-editor/processing?jobId=${encodeURIComponent(jobId)}`}
+          <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-1">
+            <CopySection
+              description="Contexto disponible para decidir el copy final."
+              title="Resumen del video"
             >
-              Volver a procesamiento
-            </Link>
-            <ActionButton busy={busy === "auto"} onClick={useAutomaticCopy}>
-              Usar copy automatico
-            </ActionButton>
+              <p className="rounded-[8px] border border-white/10 bg-black/20 px-4 py-4 text-sm leading-7 text-zinc-200">
+                {copyPack.summary || "No hay summary disponible para este job."}
+              </p>
+              <dl className="grid gap-3 text-sm">
+                <Summary label="Estado" value={job?.status || "pendiente"} />
+                <Summary
+                  label="Fuente"
+                  value={source === "edited" ? "Copy editado manualmente" : "Copy automatico"}
+                />
+              </dl>
+            </CopySection>
+
+            <div className="grid gap-3 rounded-[8px] border border-white/10 bg-white/[0.07] p-5 shadow-[0_30px_100px_-66px_rgba(0,0,0,1)] backdrop-blur-xl">
+              <ActionButton busy={busy === "save"} onClick={handleSave}>
+                Guardar copy
+              </ActionButton>
+              <ActionButton busy={busy === "render"} onClick={handleRender} primary>
+                Renderizar video final
+              </ActionButton>
+              <Link
+                className="inline-flex min-h-12 items-center justify-center rounded-[8px] border border-white/12 bg-white/[0.07] px-4 text-sm font-semibold text-white transition hover:bg-white/[0.12]"
+                href={`/video-editor/processing?jobId=${encodeURIComponent(jobId)}`}
+              >
+                Volver a procesamiento
+              </Link>
+              <ActionButton busy={busy === "auto"} onClick={useAutomaticCopy}>
+                Usar copy automatico
+              </ActionButton>
+            </div>
           </div>
         </aside>
       </div>
@@ -445,4 +493,16 @@ function Summary({ label, value }: { label: string; value: string }) {
       <dd className="mt-1 break-words text-zinc-100">{value}</dd>
     </div>
   );
+}
+
+function getFallbackSafeZone(outputFormat: VideoEditorOutputFormat): VideoEditorSafeZone {
+  if (outputFormat === "horizontal_16_9") {
+    return { bottom: 80, left: 80, right: 80, top: 40 };
+  }
+
+  if (outputFormat === "square_1_1") {
+    return { bottom: 120, left: 40, right: 40, top: 60 };
+  }
+
+  return { bottom: 280, left: 40, right: 40, top: 100 };
 }

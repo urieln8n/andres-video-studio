@@ -125,6 +125,8 @@ export type VideoEditorMotionMode = "auto" | "fallback";
 
 export type VideoEditorExportQuality = "draft" | "standard" | "premium";
 
+export type VideoEditorCopyPreviewStage = "hook" | "subtitle" | "cta";
+
 export type VideoEditorPlatformPresetId =
   | "tiktok"
   | "instagram_reels"
