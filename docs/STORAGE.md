@@ -22,8 +22,32 @@ All runtime files stay inside `storage/` in this workspace.
 ## Growth risks
 
 - Originals, output MP4s, intermediates, and export ZIPs can duplicate bytes.
-- ZIP generation currently reads package entries into memory.
-- No automatic retention policy exists yet for temp or exports.
+- `storage/input` and `storage/output` grow until manually deleted.
 
-Any cleanup phase needs an explicit user-facing retention policy, preview of
-files to remove, and safeguards for active jobs.
+## Retention policy
+
+Phase 3C introduced a read-only audit and a confirmation-gated cleanup:
+
+| Category | Threshold | Location |
+|---|---|---|
+| Temp files | > 3 days old | `storage/temp/` |
+| Export directories | > 7 days old | `storage/exports/` |
+| Orphan temp files | No matching job UUID | `storage/temp/` |
+
+### Safe boundaries
+
+The cleanup function (`cleanupOldFiles`) **only** deletes inside `storage/temp`
+and `storage/exports`. It will never touch `storage/input`, `storage/output`,
+`storage/jobs`, or `storage/clients`. Every path is validated with
+`isPathInsideRoot` before deletion.
+
+### How to run a cleanup
+
+1. **Audit first** — GET `/api/video-editor/storage/retention` to preview
+   what would be deleted and how much space is recoverable.
+2. **Confirm deletion** — POST `/api/video-editor/storage/retention/cleanup`
+   with body `{ "confirm": "DELETE_TEMP_AND_OLD_EXPORTS" }`.
+3. **Visual summary** — open `/video-editor/system` to see live counts and
+   reclaim estimates without leaving the UI.
+
+Do not automate cleanup without reviewing the audit report first.

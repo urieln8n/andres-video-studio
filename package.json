@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:quality": "node --test scripts/quality/check-path-security.mjs scripts/quality/check-api-response.mjs scripts/quality/check-normalizer.mjs"
   },
   "dependencies": {
     "next": "16.2.6",

@@ -129,6 +129,9 @@ complete manual QA checklist.
 | `/video-editor/clients` | Client management |
 | `/video-editor/dashboard` | Agency metrics |
 | `/video-editor/barberiaos` | BarberiaOS Content Studio info |
+| `/video-editor/system` | System health, dependency checks, storage audit |
+| `/api/video-editor/health` | JSON health check (200 healthy / 503 degraded) |
+| `/api/video-editor/storage/retention` | JSON retention audit — files safe to delete |
 
 ---
 
@@ -157,10 +160,11 @@ disk usage grows — check the dashboard storage widget for current usage.
 ## Commands
 
 ```powershell
-npm run dev      # local dev server
-npm run build    # production build (stop dev server first on Windows)
-npm start        # run production build
-npm run lint     # ESLint
+npm run dev            # local dev server
+npm run build          # production build (stop dev server first on Windows)
+npm start              # run production build
+npm run lint           # ESLint
+npm run check:quality  # node:test quality checks (no compile needed)
 ```
 
 ---
@@ -189,7 +193,7 @@ ENABLE_HYPERFRAMES=false         # true to activate Hyperframes motion engine
 | One job at a time | Lock file prevents concurrent processing |
 | Local only | No cloud storage, no remote access |
 | No authentication | Anyone on the local network can access the app |
-| No retention policy | `storage/temp` and `storage/exports` grow until manually cleaned |
+| Retention audit only | `/video-editor/system` shows candidates; no automatic deletion |
 | ZIP in memory | Large export packages (>500 MB) may be slow |
 | Transcription optional | Without faster-whisper, mock subtitles are used |
 | Heavy renders | FFmpeg runs in the same Node.js process as the UI |
@@ -230,11 +234,11 @@ three-level architecture plan (Local → Agency VPS → SaaS).
 - Professional documentation suite (`docs/`)
 - `.env.example` and this README
 
-### Phase 3C (next recommended)
-- Automated tests for stores, normalizers, path helpers, and API errors
-- Retention policy UI for `storage/temp` and old exports
-- Streaming response for large video and ZIP downloads
-- FFmpeg startup health check
+### Completed — Phase 3C (Hardening)
+- Quality check scripts for path security, API responses, and normalizers (`npm run check:quality`)
+- Health check endpoint (`/api/video-editor/health`) and system page (`/video-editor/system`)
+- Streaming responses for MP4 and ZIP downloads (no full-file buffer)
+- Retention policy audit (`/api/video-editor/storage/retention`) with confirmation-gated cleanup
 
 ### Phase 4 — Agency VPS
 - Worker process separated from Next.js (BullMQ + Redis)
