@@ -47,9 +47,14 @@ export function VideoEditorShell({
               </span>
             </Link>
 
-            <span className="hidden rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-medium text-zinc-300 sm:inline-flex">
-              Frontend visual
-            </span>
+            <nav className="flex items-center gap-2">
+              <Link
+                href="/video-editor/library"
+                className="inline-flex min-h-10 items-center rounded-[8px] border border-white/10 bg-black/20 px-3 text-xs font-semibold text-zinc-200 transition hover:border-[#efd8ad]/30 hover:text-[#efd8ad] sm:px-4 sm:text-sm"
+              >
+                Biblioteca
+              </Link>
+            </nav>
           </div>
         </header>
 

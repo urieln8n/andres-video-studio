@@ -1,4 +1,7 @@
-import { readJob } from "@/lib/video-editor/job-store";
+import {
+  deleteJobArtifacts,
+  readJob,
+} from "@/lib/video-editor/job-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,4 +18,22 @@ export async function GET(
   }
 
   return Response.json({ job });
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ jobId: string }> },
+) {
+  const { jobId } = await params;
+  const deleted = await deleteJobArtifacts(jobId);
+
+  if (!deleted) {
+    return Response.json({ error: "Job no encontrado." }, { status: 404 });
+  }
+
+  return Response.json({
+    deletedFiles: deleted.deletedFiles,
+    jobId: deleted.job.id,
+    message: "Job y artefactos locales borrados.",
+  });
 }

@@ -1,5 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 
 import type { VideoEditorJob } from "@/lib/video-editor/types";
@@ -231,7 +238,7 @@ export async function writeJob(job: VideoEditorJob) {
 }
 
 export async function readJob(jobId: string) {
-  if (!isUuid(jobId)) {
+  if (!isValidVideoEditorJobId(jobId)) {
     return null;
   }
 
@@ -245,6 +252,36 @@ export async function readJob(jobId: string) {
 
     throw error;
   }
+}
+
+export async function listJobs() {
+  await ensureVideoEditorStorage();
+
+  const entries = await readdir(jobsRoot, { withFileTypes: true });
+  const jobs = await Promise.all(
+    entries
+      .filter(
+        (entry) =>
+          entry.isFile() &&
+          entry.name.endsWith(".json") &&
+          isValidVideoEditorJobId(path.basename(entry.name, ".json")),
+      )
+      .map(async (entry) => {
+        try {
+          const value = JSON.parse(
+            await readFile(path.join(jobsRoot, entry.name), "utf8"),
+          ) as VideoEditorJob;
+
+          return isValidVideoEditorJobId(value.id) ? value : null;
+        } catch {
+          return null;
+        }
+      }),
+  );
+
+  return jobs
+    .filter((job): job is VideoEditorJob => Boolean(job))
+    .sort((left, right) => getJobSortTime(right) - getJobSortTime(left));
 }
 
 export async function updateJob(
@@ -261,6 +298,35 @@ export async function updateJob(
 
   await writeJob(nextJob);
   return nextJob;
+}
+
+export async function deleteJobArtifacts(jobId: string) {
+  if (!isValidVideoEditorJobId(jobId)) {
+    return null;
+  }
+
+  const job = await readJob(jobId);
+
+  if (!job) {
+    return null;
+  }
+
+  await ensureVideoEditorStorage();
+
+  const deleted = await Promise.all([
+    removeKnownFile(getOutputAbsolutePath(jobId), outputRoot),
+    removeKnownFile(getSubtitledOutputAbsolutePath(jobId), outputRoot),
+    removeJobOutputFile(job.outputPath, jobId),
+    removeJobOutputFile(job.finalVideoPath, jobId),
+    removePrefixedFiles(tempRoot, jobId),
+    removePrefixedFiles(transcriptsRoot, jobId),
+  ]);
+  const jobRemoved = await removeKnownFile(getJobAbsolutePath(jobId), jobsRoot);
+
+  return {
+    job,
+    deletedFiles: deleted.reduce((sum, count) => sum + count, jobRemoved),
+  };
 }
 
 export async function fileHasContent(filePath: string) {
@@ -281,10 +347,70 @@ function getJobAbsolutePath(jobId: string) {
   return path.join(jobsRoot, `${jobId}.json`);
 }
 
-function isUuid(value: string) {
+export function isValidVideoEditorJobId(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value,
   );
+}
+
+async function removePrefixedFiles(root: string, prefix: string): Promise<number> {
+  const entries = await readdir(root, { withFileTypes: true });
+  const removed = await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && entry.name.startsWith(prefix))
+      .map((entry) => removeKnownFile(path.join(root, entry.name), root)),
+  );
+
+  return removed.reduce((sum, count) => sum + count, 0);
+}
+
+async function removeJobOutputFile(
+  relativePath: string | null | undefined,
+  jobId: string,
+): Promise<number> {
+  if (!relativePath) {
+    return 0;
+  }
+
+  const normalized = relativePath.replace(/\\/g, "/");
+  const fileName = path.posix.basename(normalized);
+
+  if (
+    path.isAbsolute(relativePath) ||
+    !normalized.startsWith("storage/output/") ||
+    normalized.includes("../") ||
+    !fileName.startsWith(jobId)
+  ) {
+    return 0;
+  }
+
+  return removeKnownFile(path.join(outputRoot, fileName), outputRoot);
+}
+
+async function removeKnownFile(filePath: string, root: string): Promise<number> {
+  const absoluteRoot = path.resolve(root);
+  const absolutePath = path.resolve(filePath);
+
+  if (!isInsideRoot(absoluteRoot, absolutePath)) {
+    return 0;
+  }
+
+  await rm(absolutePath, { force: true });
+  return 1;
+}
+
+function isInsideRoot(root: string, candidate: string) {
+  const relative = path.relative(root, candidate);
+
+  return (
+    relative.length > 0 &&
+    !relative.startsWith("..") &&
+    !path.isAbsolute(relative)
+  );
+}
+
+function getJobSortTime(job: VideoEditorJob) {
+  return Date.parse(job.updatedAt || job.createdAt) || 0;
 }
 
 function isFileMissingError(error: unknown): error is NodeJS.ErrnoException {

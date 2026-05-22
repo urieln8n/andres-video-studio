@@ -156,3 +156,7 @@ export type VideoEditorJob = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type VideoEditorLibraryJob = VideoEditorJob & {
+  hasFinalVideo: boolean;
+};
