@@ -11,6 +11,7 @@ import {
   getSubtitleAbsolutePath,
   readJob,
 } from "@/lib/video-editor/job-store";
+import { getTemplateById } from "@/lib/video-editor/templates";
 
 type VideoResultPageProps = {
   searchParams: Promise<{ jobId?: string | string[] }>;
@@ -53,6 +54,7 @@ export default async function VideoResultPage({
   const outputFileName = job.outputPath
     ? path.posix.basename(job.outputPath)
     : "Pendiente";
+  const template = getTemplateById(job.templateId);
   const details: VideoDetail[] = [
     { label: "Job ID", value: job.id },
     { label: "Archivo subido", value: job.originalFileName },
@@ -93,7 +95,7 @@ export default async function VideoResultPage({
       value: formatSeconds(job.finalEstimatedDuration),
     },
     { label: "Output", value: job.outputPath || "Pendiente" },
-    { label: "Template usado", value: job.templateId || "Pendiente" },
+    { label: "Plantilla usada", value: template.name },
     { label: "Hook usado", value: job.hookText || "Pendiente" },
     { label: "CTA usado", value: job.ctaText || "Pendiente" },
     { label: "Overlay comercial", value: job.overlayPath || "Fallback" },

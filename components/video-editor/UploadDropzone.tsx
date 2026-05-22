@@ -3,6 +3,10 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { TemplateSelector } from "@/components/video-editor/TemplateSelector";
+import { defaultTemplateId } from "@/lib/video-editor/templates";
+import type { VideoEditorCommercialTemplate } from "@/lib/video-editor/types";
+
 const supportedFormats = ["mp4", "mov", "m4v", "webm"];
 const maxFileSize = 250 * 1024 * 1024;
 const acceptedFormats = supportedFormats.map((format) => `.${format}`).join(",");
@@ -14,6 +18,8 @@ export function UploadDropzone() {
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [templateId, setTemplateId] =
+    useState<VideoEditorCommercialTemplate["id"]>(defaultTemplateId);
 
   function selectFile(nextFile: File | undefined) {
     if (!nextFile) {
@@ -54,6 +60,7 @@ export function UploadDropzone() {
 
     const formData = new FormData();
     formData.append("video", file);
+    formData.append("templateId", templateId);
 
     try {
       const response = await fetch("/api/video-editor/upload", {
@@ -83,7 +90,13 @@ export function UploadDropzone() {
   }
 
   return (
-    <section className="rounded-[8px] border border-white/10 bg-white/[0.07] p-3 shadow-[0_40px_130px_-72px_rgba(0,0,0,1)] backdrop-blur-xl">
+    <div className="flex flex-col gap-5">
+      <TemplateSelector
+        onSelect={setTemplateId}
+        selectedTemplateId={templateId}
+      />
+
+      <section className="rounded-[8px] border border-white/10 bg-white/[0.07] p-3 shadow-[0_40px_130px_-72px_rgba(0,0,0,1)] backdrop-blur-xl">
       <div
         className={`flex min-h-[24rem] flex-col items-center justify-center rounded-[8px] border border-dashed bg-[linear-gradient(145deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] px-5 py-10 text-center transition sm:px-10 ${
           dragging
@@ -172,6 +185,7 @@ export function UploadDropzone() {
           {uploading ? "Subiendo vídeo..." : "Editar vídeo en automático"}
         </button>
       </div>
-    </section>
+      </section>
+    </div>
   );
 }

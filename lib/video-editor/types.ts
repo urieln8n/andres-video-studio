@@ -81,6 +81,8 @@ export type VideoEditorCommercialTemplateStyle = "premium-dark";
 export type VideoEditorCommercialTemplate = {
   id: "barberia" | "negocio_local" | "agencia_ia" | "podcast" | "generico";
   name: string;
+  description: string;
+  niche: string;
   hook: string;
   cta: string;
   accentColor: string;

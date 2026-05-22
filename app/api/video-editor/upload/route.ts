@@ -9,12 +9,14 @@ import {
   isAllowedVideoFileName,
   writeJob,
 } from "@/lib/video-editor/job-store";
+import { getTemplateById } from "@/lib/video-editor/templates";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
   const video = formData.get("video");
+  const templateId = formData.get("templateId");
 
   if (!(video instanceof File)) {
     return Response.json(
@@ -46,7 +48,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const job = createUploadedJob(video.name);
+  const template = getTemplateById(templateId);
+  const job = createUploadedJob(video.name, template.id);
 
   await ensureVideoEditorStorage();
   await writeFile(
@@ -57,4 +60,3 @@ export async function POST(request: Request) {
 
   return Response.json({ jobId: job.id }, { status: 201 });
 }
-

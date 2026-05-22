@@ -3,6 +3,7 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import type { VideoEditorJob } from "@/lib/video-editor/types";
+import { getTemplateById } from "@/lib/video-editor/templates";
 
 export const VIDEO_EDITOR_ALLOWED_EXTENSIONS = [
   ".mp4",
@@ -153,10 +154,11 @@ export function getFinalTranscriptRelativePath(jobId: string) {
   return path.posix.join("storage", "transcripts", `${jobId}_final.json`);
 }
 
-export function createUploadedJob(fileName: string) {
+export function createUploadedJob(fileName: string, templateId?: unknown) {
   const id = randomUUID();
   const originalFileName = sanitizeVideoFileName(fileName);
   const storedFileName = createStoredFileName(id, originalFileName);
+  const template = getTemplateById(templateId);
   const now = new Date().toISOString();
 
   return {
@@ -176,9 +178,9 @@ export function createUploadedJob(fileName: string) {
     fillerRemovedSeconds: null,
     fillerCleanVideoPath: null,
     finalTranscriptPath: null,
-    templateId: null,
-    hookText: null,
-    ctaText: null,
+    templateId: template.id,
+    hookText: template.hook,
+    ctaText: template.cta,
     overlayPath: null,
     finalVideoPath: null,
     originalDuration: null,

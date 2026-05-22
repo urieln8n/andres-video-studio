@@ -12,6 +12,7 @@ import type {
   ProcessingStatus,
 } from "@/lib/video-editor/mock-data";
 import type { VideoEditorJob } from "@/lib/video-editor/types";
+import { getTemplateById } from "@/lib/video-editor/templates";
 
 const phases = [
   { label: "Subida y guardado", progress: 0 },
@@ -110,6 +111,7 @@ export function ProcessingJobPanel({ jobId }: { jobId: string }) {
   const status = useMemo(() => buildStatus(job), [job]);
   const phaseList = useMemo(() => buildPhases(job?.progress ?? 0), [job]);
   const logs = useMemo(() => buildLogs(job), [job]);
+  const template = getTemplateById(job?.templateId);
 
   return (
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-6">
@@ -120,6 +122,25 @@ export function ProcessingJobPanel({ jobId }: { jobId: string }) {
       ) : null}
 
       <ProgressStatusCard status={status} />
+
+      <div className="grid gap-3 rounded-[8px] border border-white/10 bg-white/[0.06] p-5 text-sm text-zinc-200 shadow-[0_28px_90px_-60px_rgba(0,0,0,1)] backdrop-blur-xl md:grid-cols-[0.7fr_1fr_1fr]">
+        <p>
+          <span className="block text-xs font-medium uppercase text-[#d6b26e]">
+            Plantilla
+          </span>
+          <span className="mt-1 block text-base font-semibold text-white">
+            {template.name}
+          </span>
+        </p>
+        <p>
+          <span className="block text-xs uppercase text-zinc-400">Hook</span>
+          <span className="mt-1 block">{job?.hookText || template.hook}</span>
+        </p>
+        <p>
+          <span className="block text-xs uppercase text-zinc-400">CTA</span>
+          <span className="mt-1 block">{job?.ctaText || template.cta}</span>
+        </p>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,1.05fr)]">
         <ProcessingPhaseList phases={phaseList} />
