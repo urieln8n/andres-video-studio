@@ -33,6 +33,11 @@ const actions = [
     label: "Ver packs exportados",
     detail: "Localiza jobs completados con packs.",
   },
+  {
+    href: "/video-editor/demo",
+    label: "Demo comercial",
+    detail: "Landing de presentación del estudio.",
+  },
 ] as const;
 
 export function QuickActionsGrid() {

@@ -149,6 +149,12 @@ export default async function SystemPage() {
         >
           ← Dashboard
         </Link>
+        <Link
+          href="/video-editor/demo"
+          className="text-sm text-zinc-400 hover:underline"
+        >
+          Demo comercial →
+        </Link>
         <a
           href="/api/video-editor/health"
           target="_blank"
