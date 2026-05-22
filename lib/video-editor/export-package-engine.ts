@@ -9,12 +9,11 @@ import {
   fileHasContent,
   getExportPackageDirAbsolutePath,
   getExportPackageDirRelativePath,
-  getExportPackageZipAbsolutePath,
-  getExportPackageZipRelativePath,
   getExportsRootAbsolutePath,
   isValidVideoEditorJobId,
   updateJob,
 } from "@/lib/video-editor/job-store";
+import { sanitizeClientSlug } from "@/lib/video-editor/client-utils";
 import {
   createAndSavePublishingPack,
   loadPublishingPack,
@@ -61,7 +60,8 @@ export async function createExportPackage(job: VideoEditorJob) {
     ctaText: job.ctaText,
   });
   const exportDirAbsolutePath = getExportPackageDirAbsolutePath(job.id);
-  const zipAbsolutePath = getExportPackageZipAbsolutePath(job.id);
+  const zipName = createZipName(job);
+  const zipAbsolutePath = path.join(exportDirAbsolutePath, zipName);
   const createdAt = new Date().toISOString();
 
   await ensureVideoEditorStorage();
@@ -90,7 +90,7 @@ export async function createExportPackage(job: VideoEditorJob) {
   const exportPackage = {
     jobId: job.id,
     exportDir: getExportPackageDirRelativePath(job.id),
-    zipPath: getExportPackageZipRelativePath(job.id),
+    zipPath: path.posix.join(getExportPackageDirRelativePath(job.id), zipName),
     files: files.map(({ absolutePath: _absolutePath, ...file }) => file),
     createdAt,
     sizeBytes: zipStat.size,
@@ -117,7 +117,6 @@ export async function resolveExportPackageZip(job: VideoEditorJob) {
 
   const exportsRoot = getExportsRootAbsolutePath();
   const expectedDir = path.resolve(getExportPackageDirAbsolutePath(job.id));
-  const expectedZip = path.resolve(getExportPackageZipAbsolutePath(job.id));
   const normalizedPath = job.exportPackagePath.replace(/\\/g, "/");
   const candidate = path.resolve(
     exportsRoot,
@@ -128,7 +127,9 @@ export async function resolveExportPackageZip(job: VideoEditorJob) {
     path.isAbsolute(job.exportPackagePath) ||
     !normalizedPath.startsWith(`storage/exports/${job.id}/`) ||
     normalizedPath.includes("../") ||
-    candidate !== expectedZip ||
+    path.extname(candidate).toLowerCase() !== ".zip" ||
+    !path.basename(candidate).startsWith("andres-video-studio-") ||
+    !path.basename(candidate).endsWith(`-${job.id}.zip`) ||
     !isInsideRoot(exportsRoot, expectedDir) ||
     !isInsideRoot(expectedDir, candidate) ||
     !(await fileHasContent(candidate))
@@ -161,6 +162,7 @@ async function writePackageFiles({
   publishingPack: VideoEditorPublishingPack;
 }) {
   const files: ExportSourceFile[] = [];
+  const client = config.clientSnapshot;
 
   await addVideo("video-final.mp4", finalVideoAbsolutePath);
   await addText(
@@ -168,7 +170,8 @@ async function writePackageFiles({
     joinBlocks([
       publishingPack.instagramCaption,
       publishingPack.hashtags.join(" "),
-      config.mode === "barberiaos" && config.barberiaos.bookingUrl
+      (config.mode === "barberiaos" || client?.sector === "barberia") &&
+      (client?.bookingUrl || config.barberiaos.bookingUrl)
         ? "Recomendación: añade el link de reserva en la bio o en una historia."
         : "",
     ]),
@@ -187,7 +190,10 @@ async function writePackageFiles({
   );
   await addText(
     "whatsapp-text.txt",
-    appendBookingUrl(publishingPack.whatsappText, config.barberiaos.bookingUrl),
+    appendBookingUrl(
+      publishingPack.whatsappText,
+      client?.bookingUrl || config.barberiaos.bookingUrl,
+    ),
   );
   await addText(
     "story-text.txt",
@@ -217,9 +223,33 @@ async function writePackageFiles({
     );
   }
 
+  if (client) {
+    await addText(
+      "client-info.txt",
+      joinBlocks([
+        `Nombre negocio: ${client.businessName}`,
+        `Sector: ${client.sector}`,
+        `Web: ${client.website || "Sin web"}`,
+        `Instagram: ${client.instagram || "Sin Instagram"}`,
+        `Booking URL: ${client.bookingUrl || "Sin link"}`,
+        "Notas útiles: datos guardados en el snapshot del job.",
+      ]),
+    );
+    await addJson("client-branding.json", {
+      id: client.id,
+      businessName: client.businessName,
+      sector: client.sector,
+      website: client.website,
+      instagram: client.instagram,
+      bookingUrl: client.bookingUrl,
+      brandColor: client.brandColor,
+    });
+  }
+
   await addJson("metadata.json", {
     jobId: job.id,
     originalFileName: cleanText(job.originalFileName, 180),
+    clientName: client?.businessName,
     finalVideoFile: "video-final.mp4",
     platformPreset: config.platformPreset,
     commercialPresetId: config.commercialPreset,
@@ -263,6 +293,14 @@ async function writePackageFiles({
     await writeFile(absolutePath, JSON.stringify(content, null, 2), "utf8");
     files.push(createFileDescriptor(name, absolutePath, "json", job.id));
   }
+}
+
+function createZipName(job: VideoEditorJob) {
+  const clientName = sanitizeClientSlug(job.config?.clientSnapshot?.businessName || "");
+
+  return clientName
+    ? `andres-video-studio-${clientName}-${job.id}.zip`
+    : `andres-video-studio-${job.id}.zip`;
 }
 
 function createFileDescriptor(

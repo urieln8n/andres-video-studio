@@ -95,6 +95,7 @@ export default async function VideoResultPage({
       : job.qrOverlayApplied
         ? "QR aplicado"
         : "Solo CTA textual";
+  const clientSnapshot = config.clientSnapshot;
 
   const details: VideoDetail[] = [
     { label: "Job ID", value: job.id },
@@ -293,6 +294,39 @@ export default async function VideoResultPage({
                   Descargar vídeo
                 </a>
               ) : null}
+            </section>
+          ) : null}
+
+          {clientSnapshot ? (
+            <section className="rounded-[8px] border border-white/10 bg-white/[0.06] p-6 shadow-[0_28px_100px_-68px_rgba(0,0,0,1)] backdrop-blur-xl">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase text-[#efd8ad]">
+                    Cliente asociado
+                  </p>
+                  <h2 className="mt-3 text-2xl font-semibold text-white">
+                    {clientSnapshot.businessName}
+                  </h2>
+                  <p className="mt-2 text-sm uppercase text-zinc-400">
+                    {clientSnapshot.sector}
+                  </p>
+                </div>
+                <span
+                  className="size-14 rounded-[8px] border border-white/15"
+                  style={{ backgroundColor: clientSnapshot.brandColor ?? "#d6b26e" }}
+                />
+              </div>
+              <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+                <BarberiaResultLine label="Web" value={clientSnapshot.website || "Sin web"} />
+                <BarberiaResultLine label="Instagram" value={clientSnapshot.instagram || "Sin Instagram"} />
+                <BarberiaResultLine label="Booking URL" value={clientSnapshot.bookingUrl || "Sin link"} />
+              </dl>
+              <Link
+                className="mt-5 inline-flex min-h-11 items-center justify-center rounded-[8px] border border-[#efd8ad]/25 bg-[#d6b26e]/12 px-4 text-sm font-semibold text-[#efd8ad]"
+                href={`/video-editor/clients/${encodeURIComponent(clientSnapshot.id)}`}
+              >
+                Ver cliente
+              </Link>
             </section>
           ) : null}
 

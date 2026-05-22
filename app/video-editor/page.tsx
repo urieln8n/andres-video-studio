@@ -13,6 +13,8 @@ import {
 import { videoFeatures } from "@/lib/video-editor/mock-data";
 import { getPlatformPresetById } from "@/lib/video-editor/platform-presets";
 import { isValidTemplateId } from "@/lib/video-editor/templates";
+import { listClients, readClient } from "@/lib/video-editor/client-store";
+import { createClientSnapshot } from "@/lib/video-editor/client-utils";
 
 type VideoEditorPageProps = {
   searchParams: Promise<{
@@ -24,13 +26,19 @@ type VideoEditorPageProps = {
     subtitleStyle?: string | string[];
     templateId?: string | string[];
     qrCtaText?: string | string[];
+    clientId?: string | string[];
   }>;
 };
 
 export default async function VideoEditorPage({
   searchParams,
 }: VideoEditorPageProps) {
-  const initialConfig = getInitialConfig(await searchParams);
+  const values = await searchParams;
+  const selectedClient = getSearchValue(values.clientId)
+    ? await readClient(getSearchValue(values.clientId)!)
+    : null;
+  const initialConfig = getInitialConfig(values, selectedClient);
+  const clients = await listClients();
   const isBarberiaOS = initialConfig.mode === "barberiaos";
 
   return (
@@ -55,7 +63,7 @@ export default async function VideoEditorPage({
           </p>
         </div>
 
-        <UploadDropzone initialConfig={initialConfig} />
+        <UploadDropzone clients={clients} initialConfig={initialConfig} />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {videoFeatures.map((feature) => (
@@ -69,6 +77,7 @@ export default async function VideoEditorPage({
 
 function getInitialConfig(
   searchParams: Awaited<VideoEditorPageProps["searchParams"]>,
+  selectedClient: Awaited<ReturnType<typeof readClient>>,
 ) {
   const mode = getSearchValue(searchParams.mode);
   const commercialPresetId = getSearchValue(searchParams.commercialPresetId);
@@ -81,7 +90,7 @@ function getInitialConfig(
   const commercialPreset = isValidCommercialPreset(commercialPresetId)
     ? getCommercialPresetById(commercialPresetId)
     : null;
-  const barberiaDefaults = mode === "barberiaos";
+  const barberiaDefaults = mode === "barberiaos" || selectedClient?.sector === "barberia";
   const platformPreset =
     isValidPlatformPreset(platformPresetId) && platformPresetId !== "custom"
       ? getPlatformPresetById(platformPresetId)
@@ -89,6 +98,12 @@ function getInitialConfig(
 
   return normalizeVideoEditorConfig({
     ...defaultVideoEditorConfig,
+    ...(selectedClient
+      ? {
+          clientId: selectedClient.id,
+          clientSnapshot: createClientSnapshot(selectedClient),
+        }
+      : {}),
     ...(barberiaDefaults
       ? {
           mode: "barberiaos",
@@ -96,8 +111,8 @@ function getInitialConfig(
           templateId: "barberia",
           outputFormat: "vertical_9_16",
           motionEnabled: true,
-          bookingUrl,
-          barbershopName,
+          bookingUrl: bookingUrl || selectedClient?.bookingUrl,
+          barbershopName: barbershopName || selectedClient?.businessName,
           qrCtaText,
         }
       : {}),

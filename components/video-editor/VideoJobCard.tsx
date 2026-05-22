@@ -12,15 +12,18 @@ import {
 import { getPlatformPresetById } from "@/lib/video-editor/platform-presets";
 import { getTemplateById } from "@/lib/video-editor/templates";
 import type { VideoEditorLibraryJob } from "@/lib/video-editor/types";
+import { ClientBadge } from "@/components/video-editor/ClientBadge";
 
 export function VideoJobCard({
   deleting,
   job,
   onDelete,
+  showDelete = true,
 }: {
   deleting: boolean;
   job: VideoEditorLibraryJob;
   onDelete: (jobId: string) => void;
+  showDelete?: boolean;
 }) {
   const config = normalizeVideoEditorConfig(job.config ?? {
     templateId: job.templateId,
@@ -94,6 +97,7 @@ export function VideoJobCard({
                 Pack ZIP
               </span>
             ) : null}
+            <ClientBadge client={config.clientSnapshot} />
           </div>
           <h2 className="mt-2 break-words text-xl font-semibold text-white">
             {job.originalFileName}
@@ -110,6 +114,14 @@ export function VideoJobCard({
             value={config.barberiaos.barbershopName || "Tu barbería"}
           />
         ) : null}
+        <Meta
+          label="Cliente"
+          value={config.clientSnapshot?.businessName || "Sin cliente"}
+        />
+        <Meta
+          label="Sector"
+          value={config.clientSnapshot?.sector || "Sin cliente"}
+        />
         <Meta label="Creado" value={formatDate(job.createdAt)} />
         <Meta
           label="Plataforma"
@@ -219,14 +231,24 @@ export function VideoJobCard({
             {exportBusy ? "Generando..." : "Generar pack"}
           </button>
         ) : null}
-        <button
-          className="inline-flex min-h-11 items-center justify-center rounded-[8px] border border-rose-200/15 bg-rose-200/[0.08] px-3 text-sm font-semibold text-rose-100 transition hover:bg-rose-200/[0.14] disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={deleting}
-          onClick={() => onDelete(job.id)}
-          type="button"
-        >
-          {deleting ? "Borrando..." : "Borrar"}
-        </button>
+        {config.clientId ? (
+          <Link
+            className="inline-flex min-h-11 items-center justify-center rounded-[8px] border border-white/12 bg-white/[0.08] px-3 text-sm font-semibold text-white"
+            href={`/video-editor/clients/${encodeURIComponent(config.clientId)}`}
+          >
+            Ver cliente
+          </Link>
+        ) : null}
+        {showDelete ? (
+          <button
+            className="inline-flex min-h-11 items-center justify-center rounded-[8px] border border-rose-200/15 bg-rose-200/[0.08] px-3 text-sm font-semibold text-rose-100 transition hover:bg-rose-200/[0.14] disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={deleting}
+            onClick={() => onDelete(job.id)}
+            type="button"
+          >
+            {deleting ? "Borrando..." : "Borrar"}
+          </button>
+        ) : null}
       </div>
     </article>
   );

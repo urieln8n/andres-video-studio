@@ -10,13 +10,34 @@ import {
   writeJob,
 } from "@/lib/video-editor/job-store";
 import { normalizeVideoEditorConfig } from "@/lib/video-editor/config";
+import { createClientSnapshot } from "@/lib/video-editor/client-utils";
+import { readClient } from "@/lib/video-editor/client-store";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
   const video = formData.get("video");
-  const config = normalizeVideoEditorConfig(Object.fromEntries(formData));
+  const requestedConfig = normalizeVideoEditorConfig(Object.fromEntries(formData));
+  const client = requestedConfig.clientId
+    ? await readClient(requestedConfig.clientId)
+    : null;
+  const config = normalizeVideoEditorConfig({
+    ...requestedConfig,
+    clientId: client?.id ?? null,
+    clientSnapshot: client ? createClientSnapshot(client) : null,
+    ...(client?.sector === "barberia"
+      ? {
+          mode: "barberiaos",
+          templateId: "barberia",
+          bookingUrl:
+            requestedConfig.barberiaos.bookingUrl || client.bookingUrl || null,
+          barbershopName:
+            requestedConfig.barberiaos.barbershopName ||
+            client.businessName,
+        }
+      : {}),
+  });
 
   if (!(video instanceof File)) {
     return Response.json(

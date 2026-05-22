@@ -22,6 +22,10 @@ import type {
   VideoEditorSubtitleStyle,
   VideoEditorTextMode,
 } from "@/lib/video-editor/types";
+import {
+  normalizeClientSnapshot,
+  isValidClientId,
+} from "@/lib/video-editor/client-utils";
 
 export { isValidOutputFormat, isValidExportQuality, isValidPlatformPreset, isValidCommercialPreset };
 
@@ -37,6 +41,8 @@ const barberiaosQrPositions = [
 const maxOverlayTextLength = 180;
 
 export const defaultVideoEditorConfig: VideoEditorConfig = {
+  clientId: null,
+  clientSnapshot: null,
   mode: "standard",
   barberiaos: {
     bookingUrl: null,
@@ -76,6 +82,14 @@ export function normalizeVideoEditorConfig(value: unknown): VideoEditorConfig {
   const ctaMode = readOption(candidate.ctaMode, textModes, "auto");
 
   return {
+    clientId:
+      typeof candidate.clientId === "string" &&
+      isValidClientId(candidate.clientId)
+        ? candidate.clientId
+        : null,
+    clientSnapshot: normalizeClientSnapshot(
+      parseJson(candidate.clientSnapshot) ?? candidate.clientSnapshot,
+    ),
     mode: readOption<VideoEditorMode>(
       candidate.mode,
       videoEditorModes,
@@ -126,6 +140,18 @@ export function normalizeVideoEditorConfig(value: unknown): VideoEditorConfig {
       defaultVideoEditorConfig.copyReviewEnabled,
     ),
   };
+}
+
+function parseJson(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
 }
 
 export function normalizeBarberiaOSConfig(value: unknown): VideoEditorBarberiaOSConfig {

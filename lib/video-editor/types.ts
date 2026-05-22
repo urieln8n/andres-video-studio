@@ -1,3 +1,5 @@
+import type { VideoEditorClientSnapshot } from "@/lib/video-editor/client-types";
+
 export type VideoEditorJobStatus =
   | "uploaded"
   | "processing"
@@ -178,6 +180,8 @@ export type VideoEditorCommercialPresetId =
   | "custom";
 
 export type VideoEditorConfig = {
+  clientId: string | null;
+  clientSnapshot: VideoEditorClientSnapshot | null;
   mode: VideoEditorMode;
   barberiaos: VideoEditorBarberiaOSConfig;
   commercialPreset: VideoEditorCommercialPresetId;

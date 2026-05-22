@@ -53,11 +53,18 @@ export async function createPublishingPack(job: VideoEditorJob) {
   const summary = cleanMultilineText(copyPack.summary || job.transcriptionText, 220);
   const hashtags = ensureHashtags(copy.hashtags, config.mode === "barberiaos");
   const hashtagLine = hashtags.join(" ");
-  const bookingUrl = cleanUrl(config.barberiaos.bookingUrl);
+  const client = config.clientSnapshot;
+  const businessName = cleanText(client?.businessName, 120);
+  const bookingUrl = cleanUrl(
+    client?.bookingUrl || config.barberiaos.bookingUrl,
+  );
   const bookingPrompt = bookingUrl
     ? `Reserva tu cita aquí: ${bookingUrl}`
     : copy.cta;
-  const explain = copy.description || summary || `Nuevo vídeo para ${commercialLabel}.`;
+  const explain =
+    copy.description ||
+    summary ||
+    `Nuevo vídeo para ${businessName || commercialLabel}.`;
   const pack = {
     id: randomUUID(),
     jobId: job.id,
@@ -81,22 +88,30 @@ export async function createPublishingPack(job: VideoEditorJob) {
       hashtagLine,
     ]),
     whatsappText:
-      config.mode === "barberiaos"
+      config.mode === "barberiaos" || client?.sector === "barberia"
         ? joinInline([
-            `Nuevo vídeo de ${cleanText(config.barberiaos.barbershopName, 80) || "nuestra barbería"}.`,
+            `Nuevo vídeo de ${businessName || cleanText(config.barberiaos.barbershopName, 80) || "nuestra barbería"}.`,
             bookingPrompt,
           ])
         : joinInline([copy.title, explain, copy.cta]),
     instagramStoryText:
-      config.mode === "barberiaos"
+      config.mode === "barberiaos" || client?.sector === "barberia"
         ? bookingUrl
           ? `Nuevo reel listo. Escanea o entra al link para reservar: ${bookingUrl}`
           : "Nuevo reel listo. Escanea o entra al link para reservar."
         : joinInline(["Nuevo reel listo.", copy.hook, copy.cta]),
     hashtags,
     postingChecklist,
-    platformTips: createPlatformTips(preset.platform, preset.recommendedDurationSeconds),
-    barberiaosTips: config.mode === "barberiaos" ? barberiaosTips : undefined,
+    platformTips: createPlatformTips(
+      preset.platform,
+      preset.recommendedDurationSeconds,
+      businessName,
+      bookingUrl,
+    ),
+    barberiaosTips:
+      config.mode === "barberiaos" || client?.sector === "barberia"
+        ? barberiaosTips
+        : undefined,
     createdAt: new Date().toISOString(),
   } satisfies VideoEditorPublishingPack;
 
@@ -174,13 +189,20 @@ function resolvePublishingCopy(job: VideoEditorJob, copyPack: VideoEditorCopyPac
   };
 }
 
-function createPlatformTips(platform: string, recommendedDurationSeconds: number) {
+function createPlatformTips(
+  platform: string,
+  recommendedDurationSeconds: number,
+  businessName: string,
+  bookingUrl: string,
+) {
   const platformLabel = cleanText(platform, 40) || "la plataforma elegida";
 
   return [
     `Usa este texto en ${platformLabel} y revisa que el hook se lea al inicio.`,
     `Comprueba que el vídeo mantenga atención en los primeros ${Math.min(3, recommendedDurationSeconds)} segundos.`,
-    "Adapta el CTA al enlace disponible en bio, descripción o mensaje directo.",
+    bookingUrl
+      ? `Usa el enlace comercial de ${businessName || "la marca"} en bio, descripción o mensaje directo.`
+      : "Adapta el CTA al enlace disponible en bio, descripción o mensaje directo.",
   ];
 }
 
