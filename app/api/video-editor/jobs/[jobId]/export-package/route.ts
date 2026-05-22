@@ -3,6 +3,7 @@ import {
   resolveExportPackageZip,
 } from "@/lib/video-editor/export-package-engine";
 import { readJob } from "@/lib/video-editor/job-store";
+import { apiError, apiOk } from "@/lib/video-editor/api-response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,22 +16,18 @@ export async function POST(
   const job = await readJob(jobId);
 
   if (!job) {
-    return Response.json({ error: "Job no encontrado." }, { status: 404 });
+    return apiError("Job no encontrado.", 404);
   }
 
   try {
     const exportPackage = await createExportPackage(job);
 
-    return Response.json({ ok: true, exportPackage });
+    return apiOk({ exportPackage });
   } catch (error) {
-    return Response.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "No se pudo generar el paquete ZIP.",
-      },
-      { status: 400 },
+    return apiError(
+      error instanceof Error
+        ? error.message
+        : "No se pudo generar el paquete ZIP.",
     );
   }
 }
@@ -43,20 +40,16 @@ export async function GET(
   const job = await readJob(jobId);
 
   if (!job) {
-    return Response.json({ error: "Job no encontrado." }, { status: 404 });
+    return apiError("Job no encontrado.", 404);
   }
 
   const zip = await resolveExportPackageZip(job);
 
   if (!zip) {
-    return Response.json(
-      { error: "El paquete ZIP todavía no está disponible." },
-      { status: 404 },
-    );
+    return apiError("El paquete ZIP todavía no está disponible.", 404);
   }
 
-  return Response.json({
-    ok: true,
+  return apiOk({
     exportPackage: {
       jobId: job.id,
       zipPath: job.exportPackagePath,

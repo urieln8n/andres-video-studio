@@ -1,21 +1,21 @@
 import { createClient, listClients } from "@/lib/video-editor/client-store";
+import { apiError, apiOk } from "@/lib/video-editor/api-response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return Response.json({ ok: true, clients: await listClients() });
+  return apiOk({ clients: await listClients() });
 }
 
 export async function POST(request: Request) {
   try {
     const client = await createClient(await request.json());
 
-    return Response.json({ ok: true, client }, { status: 201 });
+    return apiOk({ client }, { status: 201 });
   } catch (error) {
-    return Response.json(
-      { error: error instanceof Error ? error.message : "No se pudo crear el cliente." },
-      { status: 400 },
+    return apiError(
+      error instanceof Error ? error.message : "No se pudo crear el cliente.",
     );
   }
 }

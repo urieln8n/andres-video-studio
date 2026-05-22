@@ -1,6 +1,7 @@
 import { resolveFinalVideoFile } from "@/lib/video-editor/file-response";
 import { listJobs } from "@/lib/video-editor/job-store";
 import type { VideoEditorLibraryJob } from "@/lib/video-editor/types";
+import { apiOk } from "@/lib/video-editor/api-response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,5 +15,5 @@ export async function GET() {
     })),
   );
 
-  return Response.json({ jobs: libraryJobs satisfies VideoEditorLibraryJob[] });
+  return apiOk({ jobs: libraryJobs satisfies VideoEditorLibraryJob[] });
 }

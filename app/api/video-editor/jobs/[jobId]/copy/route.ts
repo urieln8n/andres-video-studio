@@ -3,6 +3,7 @@ import {
   saveFinalCopy,
 } from "@/lib/video-editor/copy-review";
 import { readJob } from "@/lib/video-editor/job-store";
+import { apiError, apiOk } from "@/lib/video-editor/api-response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,11 +16,10 @@ export async function GET(
   const job = await readJob(jobId);
 
   if (!job) {
-    return Response.json({ error: "Job no encontrado." }, { status: 404 });
+    return apiError("Job no encontrado.", 404);
   }
 
-  return Response.json({
-    ok: true,
+  return apiOk({
     copyPack: await loadCopyPack(job),
     finalCopy: job.finalCopy ?? null,
     job,
@@ -34,7 +34,7 @@ export async function PUT(
   const job = await readJob(jobId);
 
   if (!job) {
-    return Response.json({ error: "Job no encontrado." }, { status: 404 });
+    return apiError("Job no encontrado.", 404);
   }
 
   const copyPack = await loadCopyPack(job);
@@ -44,7 +44,7 @@ export async function PUT(
     copyPack,
   );
 
-  return Response.json({ ok: true, copyPack, finalCopy, job: savedJob });
+  return apiOk({ copyPack, finalCopy, job: savedJob });
 }
 
 async function readCopyBody(request: Request) {

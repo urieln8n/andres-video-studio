@@ -8,6 +8,7 @@ import {
 } from "@/lib/video-editor/dashboard-analytics";
 import { listClients } from "@/lib/video-editor/client-store";
 import { listJobs } from "@/lib/video-editor/job-store";
+import { apiOk } from "@/lib/video-editor/api-response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,8 +25,7 @@ export async function GET() {
       getSystemStatus(jobs),
     ]);
 
-  return Response.json({
-    ok: true,
+  return apiOk({
     stats,
     recentActivity,
     topClients,

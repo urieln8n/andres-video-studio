@@ -4,6 +4,7 @@ import {
   updateClient,
 } from "@/lib/video-editor/client-store";
 import { listJobs } from "@/lib/video-editor/job-store";
+import { apiError, apiOk } from "@/lib/video-editor/api-response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,10 +17,10 @@ export async function GET(
   const client = await readClient(clientId);
 
   if (!client) {
-    return Response.json({ error: "Cliente no encontrado." }, { status: 404 });
+    return apiError("Cliente no encontrado.", 404);
   }
 
-  return Response.json({ ok: true, client });
+  return apiOk({ client });
 }
 
 export async function PUT(
@@ -32,14 +33,15 @@ export async function PUT(
     const client = await updateClient(clientId, await request.json());
 
     if (!client) {
-      return Response.json({ error: "Cliente no encontrado." }, { status: 404 });
+      return apiError("Cliente no encontrado.", 404);
     }
 
-    return Response.json({ ok: true, client });
+    return apiOk({ client });
   } catch (error) {
-    return Response.json(
-      { error: error instanceof Error ? error.message : "No se pudo actualizar el cliente." },
-      { status: 400 },
+    return apiError(
+      error instanceof Error
+        ? error.message
+        : "No se pudo actualizar el cliente.",
     );
   }
 }
@@ -52,17 +54,14 @@ export async function DELETE(
   const jobs = await listJobs();
 
   if (jobs.some((job) => job.config?.clientId === clientId)) {
-    return Response.json(
-      { error: "Este cliente tiene vídeos asociados. No se borró." },
-      { status: 409 },
-    );
+    return apiError("Este cliente tiene vídeos asociados. No se borró.", 409);
   }
 
   const client = await deleteClient(clientId);
 
   if (!client) {
-    return Response.json({ error: "Cliente no encontrado." }, { status: 404 });
+    return apiError("Cliente no encontrado.", 404);
   }
 
-  return Response.json({ ok: true, clientId: client.id });
+  return apiOk({ clientId: client.id });
 }

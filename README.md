@@ -1,45 +1,26 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ANDRES VIDEO STUDIO
 
-## Getting Started
+Editor de video local para crear clips con upload, jobs JSON, FFmpeg,
+transcripcion opcional con faster-whisper, subtitulos ASS, copy review,
+publishing packs, ZIP de entrega, clientes y dashboard de agencia.
 
-First, run the development server:
+El proyecto guarda artefactos en `storage/` dentro del workspace. No depende de
+Supabase, Redis, Docker ni APIs pagadas para el flujo base.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Requisitos
+
+- Windows compatible con Node.js y PowerShell.
+- Node.js con `npm`.
+- FFmpeg disponible en `PATH` para procesar videos.
+- Python local opcional para transcripcion real con `faster-whisper`.
+
+## Instalacion
+
+```powershell
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-# andres-video-studio
-
-## Transcripción local
-
-La transcripción real usa `faster-whisper` desde un entorno Python local. En
-Windows:
+Para activar transcripcion real en Windows:
 
 ```powershell
 python -m venv .venv
@@ -48,4 +29,49 @@ pip install faster-whisper
 ```
 
 El proceso usa `.venv\Scripts\python.exe` cuando existe y cae al launcher
-`py` en Windows. Sin `faster-whisper`, el render conserva los subtítulos mock.
+`py` en Windows. Sin `faster-whisper`, el render conserva subtitulos mock.
+
+## Flujo local
+
+1. Ejecuta `npm run dev`.
+2. Abre `/video-editor`.
+3. Sube un video y revisa la configuracion.
+4. Sigue progreso y logs en `/video-editor/processing`.
+5. Revisa copy cuando el job lo pida.
+6. Abre resultado, descarga MP4 y genera ZIP si procede.
+7. Usa library, clients y dashboard para controlar jobs locales.
+
+## Comandos
+
+```powershell
+npm run dev
+npm run build
+npm run lint
+```
+
+En Windows, deten `next dev` antes de `npm run build` si el servidor mantiene
+logs abiertos dentro de `.next`.
+
+## Rutas utiles
+
+- Editor: `/video-editor`
+- Biblioteca: `/video-editor/library`
+- Clientes: `/video-editor/clients`
+- Dashboard de agencia: `/video-editor/dashboard`
+- Modo BarberiaOS: `/video-editor/barberiaos`
+
+## Limitaciones actuales
+
+- El pipeline corre en el proceso local de Next; todavia no hay worker separado.
+- La transcripcion puede caer a subtitulos mock cuando Python o faster-whisper no estan disponibles.
+- `storage/temp` y `storage/exports` pueden crecer; no hay limpieza automatica.
+- ZIP y downloads actuales no estan optimizados para ficheros muy grandes.
+- Los locks de procesamiento son locales por archivo; se limpian si superan el umbral stale, pero no coordinan varias maquinas.
+
+## Documentacion
+
+- `docs/ARCHITECTURE.md`
+- `docs/PIPELINE.md`
+- `docs/STORAGE.md`
+- `docs/ROADMAP.md`
+- `docs/LOCAL_TEST_CHECKLIST.md`

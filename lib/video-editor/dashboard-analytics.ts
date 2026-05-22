@@ -8,6 +8,7 @@ import type {
 } from "@/lib/video-editor/client-types";
 import { listJobs } from "@/lib/video-editor/job-store";
 import type { VideoEditorJob } from "@/lib/video-editor/types";
+import { formatBytes } from "@/lib/video-editor/text-sanitize";
 
 const storageRoot = path.join(process.cwd(), "storage");
 const storageRoots = {
@@ -280,23 +281,6 @@ export async function getSystemStatus(jobs?: VideoEditorJob[]) {
     exportsStorageLabel: formatBytes(storageUsage.exportsBytes),
     latestErrorAt: errors[0]?.failedAt ?? null,
   } satisfies DashboardSystemStatus;
-}
-
-export function formatBytes(value: number) {
-  if (!Number.isFinite(value) || value <= 0) {
-    return "0 B";
-  }
-
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  const unitIndex = Math.min(
-    Math.floor(Math.log(value) / Math.log(1024)),
-    units.length - 1,
-  );
-  const amount = value / 1024 ** unitIndex;
-
-  return `${new Intl.NumberFormat("es-ES", {
-    maximumFractionDigits: unitIndex === 0 ? 0 : 1,
-  }).format(amount)} ${units[unitIndex]}`;
 }
 
 export function estimateTimeSaved(

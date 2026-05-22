@@ -3,6 +3,11 @@ import type {
   VideoEditorClientSector,
   VideoEditorClientSnapshot,
 } from "@/lib/video-editor/client-types";
+import { validateClientId } from "@/lib/video-editor/safe-paths";
+import {
+  sanitizeMultilineText,
+  sanitizeText,
+} from "@/lib/video-editor/text-sanitize";
 
 export const clientSectors: VideoEditorClientSector[] = [
   "barberia",
@@ -87,9 +92,7 @@ export function isClientSector(value: unknown): value is VideoEditorClientSector
 }
 
 export function isValidClientId(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    value,
-  );
+  return validateClientId(value);
 }
 
 export function sanitizeClientSlug(value: string) {
@@ -111,16 +114,7 @@ function optionalText(value: unknown, maxLength: number) {
 }
 
 function optionalMultilineText(value: unknown, maxLength: number) {
-  if (typeof value !== "string") {
-    return undefined;
-  }
-
-  return stripText(value)
-    .replace(/\r\n/g, "\n")
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .slice(0, maxLength)
-    .trim() || undefined;
+  return sanitizeMultilineText(value, maxLength) || undefined;
 }
 
 function optionalHttpUrl(value: unknown) {
@@ -148,18 +142,7 @@ function optionalBrandColor(value: unknown) {
 }
 
 function cleanText(value: unknown, maxLength: number) {
-  if (typeof value !== "string") {
-    return "";
-  }
-
-  return stripText(value).replace(/\s+/g, " ").trim().slice(0, maxLength);
-}
-
-function stripText(value: string) {
-  return value
-    .replace(/<[^>]*>/g, "")
-    .replace(/[<>]/g, "")
-    .replace(/[\u0000-\u001f]/g, " ");
+  return sanitizeText(value, maxLength);
 }
 
 function toRecord(value: unknown) {

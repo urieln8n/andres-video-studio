@@ -10,6 +10,7 @@ import {
   appendJobLog,
   markJobProcessing,
 } from "@/lib/video-editor/progress";
+import { apiError, apiOk } from "@/lib/video-editor/api-response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,23 +23,21 @@ export async function POST(
   const job = await readJob(jobId);
 
   if (!job) {
-    return Response.json({ error: "Job no encontrado." }, { status: 404 });
+    return apiError("Job no encontrado.", 404);
   }
 
   if (
     job.status === "completed" &&
     (await fileHasContent(getOutputAbsolutePath(job.id)))
   ) {
-    return Response.json({
-      ok: true,
+    return apiOk({
       job,
       message: "El vídeo ya fue procesado",
     });
   }
 
   if (job.status === "awaiting_copy_review") {
-    return Response.json({
-      ok: true,
+    return apiOk({
       job,
       nextUrl: `/video-editor/copy?jobId=${encodeURIComponent(job.id)}`,
       message: "El copy espera revisión",
@@ -46,8 +45,7 @@ export async function POST(
   }
 
   if (job.status === "copy_approved") {
-    return Response.json({
-      ok: true,
+    return apiOk({
       job,
       nextUrl: `/video-editor/copy?jobId=${encodeURIComponent(job.id)}`,
       message: "El copy ya está aprobado. Lanza el render final desde revisión.",
@@ -55,9 +53,8 @@ export async function POST(
   }
 
   if (job.status === "processing" || job.status === "rendering_final") {
-    return Response.json(
+    return apiOk(
       {
-        ok: true,
         job,
         message: "El vídeo ya se está procesando",
       },
@@ -74,9 +71,8 @@ export async function POST(
           : "full";
 
   if (!(await acquireProcessingLock(job.id))) {
-    return Response.json(
+    return apiOk(
       {
-        ok: true,
         job: await readJob(job.id),
         message: "El vídeo ya se está procesando",
       },
@@ -102,9 +98,8 @@ export async function POST(
       releaseProcessingLock(job.id);
     });
 
-  return Response.json(
+  return apiOk(
     {
-      ok: true,
       job: await readJob(job.id),
       message:
         mode === "prepare_copy"

@@ -7,6 +7,7 @@ import {
   updateJob,
 } from "@/lib/video-editor/job-store";
 import { touchJob } from "@/lib/video-editor/progress";
+import { apiError, apiOk } from "@/lib/video-editor/api-response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,14 +20,11 @@ export async function POST(
   let job = await readJob(jobId);
 
   if (!job) {
-    return Response.json({ error: "Job no encontrado." }, { status: 404 });
+    return apiError("Job no encontrado.", 404);
   }
 
   if (job.status === "processing" || job.status === "rendering_final") {
-    return Response.json(
-      { ok: true, job, message: "El render final ya está en curso" },
-      { status: 202 },
-    );
+    return apiOk({ job, message: "El render final ya está en curso" }, { status: 202 });
   }
 
   if (!job.finalCopy) {
@@ -48,9 +46,8 @@ export async function POST(
   }
 
   if (!(await acquireProcessingLock(job.id))) {
-    return Response.json(
+    return apiOk(
       {
-        ok: true,
         job: await readJob(job.id),
         message: "El render final ya está en curso",
       },
@@ -78,9 +75,8 @@ export async function POST(
       releaseProcessingLock(job.id);
     });
 
-  return Response.json(
+  return apiOk(
     {
-      ok: true,
       job: await readJob(job.id),
       message: "Render final iniciado",
     },

@@ -1,5 +1,6 @@
 import { readJob } from "@/lib/video-editor/job-store";
 import { loadPublishingPack } from "@/lib/video-editor/publishing-pack-engine";
+import { apiError, apiOk } from "@/lib/video-editor/api-response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,17 +13,17 @@ export async function GET(
   const job = await readJob(jobId);
 
   if (!job) {
-    return Response.json({ error: "Job no encontrado." }, { status: 404 });
+    return apiError("Job no encontrado.", 404);
   }
 
   const publishingPack = await loadPublishingPack(job.id);
 
   if (!publishingPack) {
-    return Response.json(
-      { error: "El paquete de publicación todavía no está disponible." },
-      { status: 404 },
+    return apiError(
+      "El paquete de publicación todavía no está disponible.",
+      404,
     );
   }
 
-  return Response.json({ ok: true, publishingPack });
+  return apiOk({ publishingPack });
 }
