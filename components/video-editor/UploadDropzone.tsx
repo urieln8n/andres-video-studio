@@ -3,9 +3,9 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { TemplateSelector } from "@/components/video-editor/TemplateSelector";
-import { defaultTemplateId } from "@/lib/video-editor/templates";
-import type { VideoEditorCommercialTemplate } from "@/lib/video-editor/types";
+import { EditorConfigPanel } from "@/components/video-editor/EditorConfigPanel";
+import { defaultVideoEditorConfig } from "@/lib/video-editor/config";
+import type { VideoEditorConfig } from "@/lib/video-editor/types";
 
 const supportedFormats = ["mp4", "mov", "m4v", "webm"];
 const maxFileSize = 250 * 1024 * 1024;
@@ -18,8 +18,9 @@ export function UploadDropzone() {
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [templateId, setTemplateId] =
-    useState<VideoEditorCommercialTemplate["id"]>(defaultTemplateId);
+  const [config, setConfig] = useState<VideoEditorConfig>(
+    defaultVideoEditorConfig,
+  );
 
   function selectFile(nextFile: File | undefined) {
     if (!nextFile) {
@@ -60,7 +61,10 @@ export function UploadDropzone() {
 
     const formData = new FormData();
     formData.append("video", file);
-    formData.append("templateId", templateId);
+
+    for (const [key, value] of Object.entries(config)) {
+      formData.append(key, value === null ? "" : String(value));
+    }
 
     try {
       const response = await fetch("/api/video-editor/upload", {
@@ -91,33 +95,41 @@ export function UploadDropzone() {
 
   return (
     <div className="flex flex-col gap-5">
-      <TemplateSelector
-        onSelect={setTemplateId}
-        selectedTemplateId={templateId}
-      />
-
       <section className="rounded-[8px] border border-white/10 bg-white/[0.07] p-3 shadow-[0_40px_130px_-72px_rgba(0,0,0,1)] backdrop-blur-xl">
-      <div
-        className={`flex min-h-[24rem] flex-col items-center justify-center rounded-[8px] border border-dashed bg-[linear-gradient(145deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] px-5 py-10 text-center transition sm:px-10 ${
-          dragging
-            ? "border-[#efd8ad] bg-[#d6b26e]/10"
-            : "border-[#dfc18a]/35"
-        }`}
-        onDragEnter={(event) => {
-          event.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={(event) => {
-          event.preventDefault();
-          setDragging(false);
-        }}
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => {
-          event.preventDefault();
-          setDragging(false);
-          selectFile(event.dataTransfer.files[0]);
-        }}
-      >
+        <div
+          className={`flex min-h-[24rem] flex-col items-center justify-center rounded-[8px] border border-dashed bg-[linear-gradient(145deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] px-5 py-10 text-center transition sm:px-10 ${
+            dragging
+              ? "border-[#efd8ad] bg-[#d6b26e]/10"
+              : "border-[#dfc18a]/35"
+          }`}
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={(event) => {
+            event.preventDefault();
+            setDragging(false);
+          }}
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragging(false);
+            selectFile(event.dataTransfer.files[0]);
+          }}
+        >
+          <div className="mb-6 flex w-full max-w-xl items-center gap-4 text-left">
+            <span className="grid size-11 shrink-0 place-items-center rounded-[8px] border border-[#efd8ad]/35 bg-[#d6b26e]/15 font-semibold text-[#efd8ad]">
+              1
+            </span>
+            <div>
+              <p className="text-xs font-medium uppercase text-[#d6b26e]">
+                Subir vídeo
+              </p>
+              <p className="mt-1 text-sm leading-6 text-zinc-300">
+                Sube el clip original para preparar el job local.
+              </p>
+            </div>
+          </div>
         <input
           ref={fileInputRef}
           accept={acceptedFormats}
@@ -176,15 +188,33 @@ export function UploadDropzone() {
           ) : null}
         </div>
 
+        </div>
+      </section>
+
+      <EditorConfigPanel config={config} onChange={setConfig} />
+
+      <section className="flex flex-col gap-4 rounded-[8px] border border-white/10 bg-white/[0.06] p-5 shadow-[0_32px_120px_-72px_rgba(0,0,0,1)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <div className="flex items-start gap-4">
+          <span className="grid size-11 shrink-0 place-items-center rounded-[8px] border border-[#efd8ad]/35 bg-[#d6b26e]/15 font-semibold text-[#efd8ad]">
+            3
+          </span>
+          <div>
+            <p className="text-xs font-medium uppercase text-[#d6b26e]">
+              Procesar
+            </p>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">
+              El job guarda esta configuración antes de lanzar FFmpeg.
+            </p>
+          </div>
+        </div>
         <button
-          className="mt-3 inline-flex min-h-14 w-full items-center justify-center rounded-[8px] border border-[#efd8ad]/30 bg-[linear-gradient(135deg,#efd8ad,#bb863e)] px-7 text-base font-semibold text-zinc-950 shadow-[0_24px_90px_-36px_rgba(214,178,110,0.95)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-none disabled:bg-white/10 disabled:text-zinc-400 disabled:shadow-none sm:w-auto"
+          className="inline-flex min-h-14 w-full items-center justify-center rounded-[8px] border border-[#efd8ad]/30 bg-[linear-gradient(135deg,#efd8ad,#bb863e)] px-7 text-base font-semibold text-zinc-950 shadow-[0_24px_90px_-36px_rgba(214,178,110,0.95)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-none disabled:bg-white/10 disabled:text-zinc-400 disabled:shadow-none sm:w-auto"
           disabled={!file || uploading}
           onClick={uploadVideo}
           type="button"
         >
           {uploading ? "Subiendo vídeo..." : "Editar vídeo en automático"}
         </button>
-      </div>
       </section>
     </div>
   );

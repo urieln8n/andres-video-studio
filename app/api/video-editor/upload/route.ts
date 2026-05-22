@@ -9,14 +9,14 @@ import {
   isAllowedVideoFileName,
   writeJob,
 } from "@/lib/video-editor/job-store";
-import { getTemplateById } from "@/lib/video-editor/templates";
+import { normalizeVideoEditorConfig } from "@/lib/video-editor/config";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
   const video = formData.get("video");
-  const templateId = formData.get("templateId");
+  const config = normalizeVideoEditorConfig(Object.fromEntries(formData));
 
   if (!(video instanceof File)) {
     return Response.json(
@@ -48,8 +48,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const template = getTemplateById(templateId);
-  const job = createUploadedJob(video.name, template.id);
+  const job = createUploadedJob(video.name, config);
 
   await ensureVideoEditorStorage();
   await writeFile(

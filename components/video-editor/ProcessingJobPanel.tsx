@@ -13,6 +13,7 @@ import type {
 } from "@/lib/video-editor/mock-data";
 import type { VideoEditorJob } from "@/lib/video-editor/types";
 import { getTemplateById } from "@/lib/video-editor/templates";
+import { normalizeVideoEditorConfig } from "@/lib/video-editor/config";
 
 const phases = [
   { label: "Subida y guardado", progress: 0 },
@@ -112,6 +113,9 @@ export function ProcessingJobPanel({ jobId }: { jobId: string }) {
   const phaseList = useMemo(() => buildPhases(job?.progress ?? 0), [job]);
   const logs = useMemo(() => buildLogs(job), [job]);
   const template = getTemplateById(job?.templateId);
+  const config = normalizeVideoEditorConfig(job?.config ?? {
+    templateId: job?.templateId,
+  });
 
   return (
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-6">
@@ -130,6 +134,12 @@ export function ProcessingJobPanel({ jobId }: { jobId: string }) {
           </span>
           <span className="mt-1 block text-base font-semibold text-white">
             {template.name}
+          </span>
+        </p>
+        <p className="md:col-span-3">
+          <span className="text-xs uppercase text-zinc-400">Preset</span>
+          <span className="ml-2 text-zinc-200">
+            {config.outputFormat} · subtítulos {config.subtitleStyle}
           </span>
         </p>
         <p>

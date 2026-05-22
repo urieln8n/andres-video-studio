@@ -20,6 +20,10 @@ import {
 } from "@/lib/video-editor/job-store";
 import { selectCommercialTemplate } from "@/lib/video-editor/commercial-template-engine";
 import {
+  getOutputDimensions,
+  normalizeVideoEditorConfig,
+} from "@/lib/video-editor/config";
+import {
   createEditPlan,
   createKeepRangesForCuts,
   writeEditPlan,
@@ -33,12 +37,16 @@ import {
   composeMotionOverlayVideos,
   renderCommercialOverlays,
 } from "@/lib/video-editor/overlay-engine";
-import { detectVideoSilences } from "@/lib/video-editor/silence-detector";
+import {
+  detectVideoSilences,
+  readVideoDuration,
+} from "@/lib/video-editor/silence-detector";
 import { createPremiumAssSubtitles } from "@/lib/video-editor/subtitle-engine";
 import { transcribeAudioWithWhisper } from "@/lib/video-editor/transcription-engine";
 import type {
   VideoEditorJob,
   VideoEditorKeepRange,
+  VideoEditorOutputFormat,
   VideoEditorTranscript,
 } from "@/lib/video-editor/types";
 
@@ -75,6 +83,13 @@ async function runVideoEditorJob(jobId: string) {
   const verticalAbsolutePath = getVerticalTempAbsolutePath(job.id);
   const subtitledAbsolutePath = getSubtitledOutputAbsolutePath(job.id);
   const outputAbsolutePath = getOutputAbsolutePath(job.id);
+  const config = normalizeVideoEditorConfig(
+    job.config ?? {
+      templateId: job.templateId,
+      hookText: job.hookText,
+      ctaText: job.ctaText,
+    },
+  );
 
   await ensureVideoEditorStorage();
 
@@ -121,6 +136,7 @@ async function runVideoEditorJob(jobId: string) {
           language: null,
           transcriptionText: null,
           transcriptSegments: undefined,
+          config,
           status: "processing",
           progress: 12,
           currentStep: "Procesando vídeo con FFmpeg",
@@ -141,13 +157,19 @@ async function runVideoEditorJob(jobId: string) {
         {
           ...currentJob,
           progress: 18,
-          currentStep: "Detectando silencios con FFmpeg",
+          currentStep: config.trimSilences
+            ? "Detectando silencios con FFmpeg"
+            : "Leyendo duración del vídeo",
         },
-        "Detectando silencios con FFmpeg",
+        config.trimSilences
+          ? "Detectando silencios con FFmpeg"
+          : "Recorte de silencios desactivado",
       ),
     );
 
-    const silenceDetection = await detectVideoSilences(inputAbsolutePath);
+    const silenceDetection = config.trimSilences
+      ? await detectVideoSilences(inputAbsolutePath)
+      : { duration: await readVideoDuration(inputAbsolutePath), silences: [] };
 
     await updateJob(job.id, (currentJob) =>
       appendJobLog(
@@ -254,50 +276,62 @@ async function runVideoEditorJob(jobId: string) {
       ),
     );
 
-    const fillerPlan = createFillerPlan({
-      jobId: job.id,
-      inputPath: editPlan.cleanPath,
-      outputPath: getFillerCleanTempRelativePath(job.id),
-      transcript: cleanTranscript,
-    });
+    const fillerPlan = config.removeFillers
+      ? createFillerPlan({
+          jobId: job.id,
+          inputPath: editPlan.cleanPath,
+          outputPath: getFillerCleanTempRelativePath(job.id),
+          transcript: cleanTranscript,
+        })
+      : null;
 
-    await updateJob(job.id, (currentJob) =>
-      appendJobLog(currentJob, "Fillers detectados"),
-    );
-    await updateJob(job.id, (currentJob) =>
-      appendJobLog(currentJob, "Generando plan de limpieza de fillers"),
-    );
+    let fillerPlanPath: string | null = null;
+    let fillerSourceAbsolutePath = cleanSourceAbsolutePath;
 
-    const fillerPlanFile = await writeFillerPlan(fillerPlan);
-    const fillerSourceAbsolutePath =
-      fillerPlan.mode === "cut"
-        ? await createFillerCleanVideo({
-            inputAbsolutePath: cleanSourceAbsolutePath,
-            outputAbsolutePath: fillerCleanAbsolutePath,
-            duration: editPlan.finalEstimatedDuration,
-            keepRanges: createKeepRangesForCuts(
-              editPlan.finalEstimatedDuration,
-              fillerPlan.cutRanges,
-            ),
-            jobId: job.id,
-          })
-        : cleanSourceAbsolutePath;
+    if (fillerPlan) {
+      await updateJob(job.id, (currentJob) =>
+        appendJobLog(currentJob, "Fillers detectados"),
+      );
+      await updateJob(job.id, (currentJob) =>
+        appendJobLog(currentJob, "Generando plan de limpieza de fillers"),
+      );
+
+      const fillerPlanFile = await writeFillerPlan(fillerPlan);
+      fillerPlanPath = fillerPlanFile.relativePath;
+      fillerSourceAbsolutePath =
+        fillerPlan.mode === "cut"
+          ? await createFillerCleanVideo({
+              inputAbsolutePath: cleanSourceAbsolutePath,
+              outputAbsolutePath: fillerCleanAbsolutePath,
+              duration: editPlan.finalEstimatedDuration,
+              keepRanges: createKeepRangesForCuts(
+                editPlan.finalEstimatedDuration,
+                fillerPlan.cutRanges,
+              ),
+              jobId: job.id,
+            })
+          : cleanSourceAbsolutePath;
+    } else {
+      await updateJob(job.id, (currentJob) =>
+        appendJobLog(currentJob, "Limpieza de fillers desactivada"),
+      );
+    }
 
     await updateJob(job.id, (currentJob) =>
       appendJobLog(
         {
           ...currentJob,
-          fillerPlanPath: fillerPlanFile.relativePath,
-          fillersCount: fillerPlan.fillersCount,
-          fillerRemovedSeconds: fillerPlan.removedSeconds,
+          fillerPlanPath,
+          fillersCount: fillerPlan?.fillersCount ?? 0,
+          fillerRemovedSeconds: fillerPlan?.removedSeconds ?? 0,
           fillerCleanVideoPath:
-            fillerPlan.mode === "cut"
+            fillerPlan?.mode === "cut"
               ? fillerPlan.outputPath
               : editPlan.cleanPath,
           progress: 62,
           currentStep: "Vídeo limpio de fillers preparado",
         },
-        fillerPlan.warnings.length
+        fillerPlan?.warnings.length
           ? `Vídeo limpio de fillers generado. ${fillerPlan.warnings.join(" ")}`
           : "Vídeo limpio de fillers generado",
       ),
@@ -322,13 +356,17 @@ async function runVideoEditorJob(jobId: string) {
         {
           ...currentJob,
           progress: 72,
-          currentStep: "Renderizando formato vertical 9:16",
+          currentStep: "Renderizando formato de salida",
         },
-        "FFmpeg disponible. Iniciando render vertical 9:16.",
+        `FFmpeg disponible. Iniciando render ${config.outputFormat}.`,
       ),
     );
 
-    await renderVerticalVideo(fillerSourceAbsolutePath, verticalAbsolutePath);
+    await renderFormattedVideo(
+      fillerSourceAbsolutePath,
+      verticalAbsolutePath,
+      config.outputFormat,
+    );
 
     if (!(await fileHasContent(verticalAbsolutePath))) {
       throw new Error("FFmpeg terminó sin crear el vídeo vertical intermedio.");
@@ -430,7 +468,7 @@ async function runVideoEditorJob(jobId: string) {
 
     const commercialDuration = Math.max(
       0,
-      editPlan.finalEstimatedDuration - fillerPlan.removedSeconds,
+      editPlan.finalEstimatedDuration - (fillerPlan?.removedSeconds ?? 0),
     );
     let overlayPath: string | null = null;
     let motionEngine: VideoEditorJob["motionEngine"] = "fallback";
@@ -449,15 +487,30 @@ async function runVideoEditorJob(jobId: string) {
       ),
     );
 
-    const motion = await prepareMotionOverlays(
-      commercialJob,
-      commercialTemplate,
-      async (message) => {
-        await updateJob(job.id, (currentJob) =>
-          appendJobLog(currentJob, message),
-        );
-      },
-    );
+    const useMotionAuto =
+      config.motionEnabled &&
+      config.motionMode === "auto" &&
+      config.outputFormat === "vertical_9_16";
+    const motion = useMotionAuto
+      ? await prepareMotionOverlays(
+          commercialJob,
+          commercialTemplate,
+          async (message) => {
+            await updateJob(job.id, (currentJob) =>
+              appendJobLog(currentJob, message),
+            );
+          },
+        )
+      : {
+          engine: "fallback" as const,
+          hook: null,
+          cta: null,
+          warnings: [
+            config.motionEnabled
+              ? "Motion premium omitido por configuración; usando fallback FFmpeg."
+              : "Motion graphics desactivados; usando overlay FFmpeg.",
+          ],
+        };
 
     motionWarnings.push(...motion.warnings);
 
@@ -602,13 +655,19 @@ async function assertFfmpegAvailable() {
   }
 }
 
-async function renderVerticalVideo(inputPath: string, outputPath: string) {
+async function renderFormattedVideo(
+  inputPath: string,
+  outputPath: string,
+  outputFormat: VideoEditorOutputFormat,
+) {
+  const { width, height } = getOutputDimensions(outputFormat);
+
   await runProcess(ffmpegCommand, [
     "-y",
     "-i",
     inputPath,
     "-vf",
-    "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black,setsar=1",
+    `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1`,
     "-c:v",
     "libx264",
     "-preset",

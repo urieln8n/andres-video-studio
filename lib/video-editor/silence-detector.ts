@@ -21,7 +21,25 @@ export async function detectVideoSilences(inputAbsolutePath: string) {
   };
 }
 
+export async function readVideoDuration(inputAbsolutePath: string) {
+  const output = await runFfmpegProbe(inputAbsolutePath);
+  const duration = parseDuration(output);
+
+  if (!duration || duration <= 0) {
+    throw new Error("No se pudo leer la duración del vídeo con FFmpeg.");
+  }
+
+  return duration;
+}
+
 function runSilenceDetect(inputAbsolutePath: string) {
+  return runFfmpegProbe(inputAbsolutePath, [
+    "-af",
+    `silencedetect=noise=${silenceNoise}:d=${silenceDuration}`,
+  ]);
+}
+
+function runFfmpegProbe(inputAbsolutePath: string, audioArgs: string[] = []) {
   return new Promise<string>((resolve, reject) => {
     const child = spawn(
       ffmpegCommand,
@@ -29,8 +47,7 @@ function runSilenceDetect(inputAbsolutePath: string) {
         "-hide_banner",
         "-i",
         inputAbsolutePath,
-        "-af",
-        `silencedetect=noise=${silenceNoise}:d=${silenceDuration}`,
+        ...audioArgs,
         "-f",
         "null",
         "-",

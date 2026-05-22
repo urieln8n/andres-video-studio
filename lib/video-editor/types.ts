@@ -91,6 +91,31 @@ export type VideoEditorCommercialTemplate = {
 
 export type VideoEditorMotionEngine = "hyperframes" | "fallback";
 
+export type VideoEditorOutputFormat =
+  | "vertical_9_16"
+  | "square_1_1"
+  | "horizontal_16_9";
+
+export type VideoEditorSubtitleStyle = "premium" | "viral" | "minimal";
+
+export type VideoEditorTextMode = "auto" | "custom";
+
+export type VideoEditorMotionMode = "auto" | "fallback";
+
+export type VideoEditorConfig = {
+  templateId: VideoEditorCommercialTemplate["id"];
+  outputFormat: VideoEditorOutputFormat;
+  subtitleStyle: VideoEditorSubtitleStyle;
+  hookMode: VideoEditorTextMode;
+  hookText: string | null;
+  ctaMode: VideoEditorTextMode;
+  ctaText: string | null;
+  trimSilences: boolean;
+  removeFillers: boolean;
+  motionEnabled: boolean;
+  motionMode: VideoEditorMotionMode;
+};
+
 export type VideoEditorJob = {
   id: string;
   originalFileName: string;
@@ -112,6 +137,7 @@ export type VideoEditorJob = {
   templateId?: VideoEditorCommercialTemplate["id"] | null;
   hookText?: string | null;
   ctaText?: string | null;
+  config?: VideoEditorConfig;
   overlayPath?: string | null;
   finalVideoPath?: string | null;
   motionEngine?: VideoEditorMotionEngine | null;

@@ -12,6 +12,7 @@ import {
   readJob,
 } from "@/lib/video-editor/job-store";
 import { getTemplateById } from "@/lib/video-editor/templates";
+import { normalizeVideoEditorConfig } from "@/lib/video-editor/config";
 
 type VideoResultPageProps = {
   searchParams: Promise<{ jobId?: string | string[] }>;
@@ -55,6 +56,9 @@ export default async function VideoResultPage({
     ? path.posix.basename(job.outputPath)
     : "Pendiente";
   const template = getTemplateById(job.templateId);
+  const config = normalizeVideoEditorConfig(job.config ?? {
+    templateId: job.templateId,
+  });
   const details: VideoDetail[] = [
     { label: "Job ID", value: job.id },
     { label: "Archivo subido", value: job.originalFileName },
@@ -96,8 +100,19 @@ export default async function VideoResultPage({
     },
     { label: "Output", value: job.outputPath || "Pendiente" },
     { label: "Plantilla usada", value: template.name },
+    { label: "Formato usado", value: config.outputFormat },
+    { label: "Estilo de subtítulos", value: config.subtitleStyle },
     { label: "Hook usado", value: job.hookText || "Pendiente" },
     { label: "CTA usado", value: job.ctaText || "Pendiente" },
+    {
+      label: "Recorte de silencios",
+      value: formatToggle(config.trimSilences),
+    },
+    {
+      label: "Limpieza de fillers",
+      value: formatToggle(config.removeFillers),
+    },
+    { label: "Motion graphics", value: formatToggle(config.motionEnabled) },
     { label: "Motor motion", value: job.motionEngine || "Pendiente" },
     {
       label: "Hook overlay motion",
@@ -194,4 +209,8 @@ function getSearchValue(value: string | string[] | undefined) {
 
 function formatSeconds(value: number | null | undefined) {
   return typeof value === "number" ? `${value.toFixed(2)}s` : "Pendiente";
+}
+
+function formatToggle(value: boolean) {
+  return value ? "Activo" : "Inactivo";
 }

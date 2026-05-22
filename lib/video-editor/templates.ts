@@ -59,13 +59,16 @@ const templatesById = new Map(
   videoEditorTemplates.map((template) => [template.id, template]),
 );
 
+export function isValidTemplateId(
+  value: unknown,
+): value is VideoEditorCommercialTemplate["id"] {
+  return typeof value === "string" && templatesById.has(value as never);
+}
+
 export function getTemplateById(value: unknown) {
-  if (typeof value !== "string") {
+  if (!isValidTemplateId(value)) {
     return templatesById.get(defaultTemplateId)!;
   }
 
-  return (
-    templatesById.get(value as VideoEditorCommercialTemplate["id"]) ??
-    templatesById.get(defaultTemplateId)!
-  );
+  return templatesById.get(value)!;
 }
