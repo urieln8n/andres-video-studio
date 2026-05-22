@@ -122,7 +122,7 @@ export function EditorConfigPanel({
           />
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <ToggleOption
             checked={config.trimSilences}
             description="Recorta pausas largas detectadas localmente."
@@ -140,6 +140,12 @@ export function EditorConfigPanel({
             description="Intenta motion premium y conserva fallback."
             label="Motion graphics"
             onChange={(motionEnabled) => update({ motionEnabled })}
+          />
+          <ToggleOption
+            checked={config.copyReviewEnabled}
+            description="Aprueba hook, CTA y copy antes del render final."
+            label="Revisar copy antes de renderizar"
+            onChange={(copyReviewEnabled) => update({ copyReviewEnabled })}
           />
           <label className="rounded-[8px] border border-white/10 bg-black/20 p-4">
             <span className="block text-sm font-semibold text-white">

@@ -42,6 +42,7 @@ export const defaultVideoEditorConfig: VideoEditorConfig = {
   removeFillers: true,
   motionEnabled: true,
   motionMode: "auto",
+  copyReviewEnabled: true,
 };
 
 export function isValidSubtitleStyle(
@@ -96,6 +97,10 @@ export function normalizeVideoEditorConfig(value: unknown): VideoEditorConfig {
       candidate.motionMode,
       motionModes,
       defaultVideoEditorConfig.motionMode,
+    ),
+    copyReviewEnabled: readBoolean(
+      candidate.copyReviewEnabled,
+      defaultVideoEditorConfig.copyReviewEnabled,
     ),
   };
 }

@@ -1,6 +1,9 @@
 export type VideoEditorJobStatus =
   | "uploaded"
   | "processing"
+  | "awaiting_copy_review"
+  | "copy_approved"
+  | "rendering_final"
   | "completed"
   | "failed";
 
@@ -14,6 +17,7 @@ export type VideoEditorPipelineStepId =
   | "detecting_fillers"
   | "cleaning_fillers"
   | "generating_subtitles"
+  | "reviewing_copy"
   | "rendering_subtitles"
   | "applying_hook_cta"
   | "applying_motion"
@@ -165,6 +169,26 @@ export type VideoEditorConfig = {
   removeFillers: boolean;
   motionEnabled: boolean;
   motionMode: VideoEditorMotionMode;
+  copyReviewEnabled: boolean;
+};
+
+export type VideoEditorCopyPack = {
+  hooks: string[];
+  ctas: string[];
+  title: string;
+  description: string;
+  hashtags: string[];
+  summary?: string | null;
+};
+
+export type VideoEditorFinalCopy = {
+  selectedHook: string;
+  selectedCta: string;
+  title: string;
+  description: string;
+  hashtags: string[];
+  source: "generated" | "edited";
+  approvedAt: string;
 };
 
 export type VideoEditorJobMetrics = {
@@ -204,6 +228,14 @@ export type VideoEditorJob = {
   templateId?: VideoEditorCommercialTemplate["id"] | null;
   hookText?: string | null;
   ctaText?: string | null;
+  finalHookText?: string | null;
+  finalCtaText?: string | null;
+  generatedTitle?: string | null;
+  generatedDescription?: string | null;
+  generatedHashtags?: string[];
+  copyPack?: VideoEditorCopyPack | null;
+  copyPackPath?: string | null;
+  finalCopy?: VideoEditorFinalCopy | null;
   config?: VideoEditorConfig;
   overlayPath?: string | null;
   finalVideoPath?: string | null;

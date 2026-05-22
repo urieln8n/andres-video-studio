@@ -19,6 +19,7 @@ import {
   updateJob,
 } from "@/lib/video-editor/job-store";
 import { selectCommercialTemplate } from "@/lib/video-editor/commercial-template-engine";
+import { prepareCopyPack } from "@/lib/video-editor/copy-review";
 import {
   getEncodingParams,
   getOutputDimensions,
@@ -67,15 +68,19 @@ import type {
 const ffmpegCommand = "ffmpeg";
 const maxErrorOutputLength = 8_000;
 const activeProcesses = new Map<string, Promise<VideoEditorJob | null>>();
+export type VideoEditorProcessMode = "full" | "prepare_copy";
 
-export function processVideoEditorJob(jobId: string) {
+export function processVideoEditorJob(
+  jobId: string,
+  mode: VideoEditorProcessMode = "full",
+) {
   const activeProcess = activeProcesses.get(jobId);
 
   if (activeProcess) {
     return activeProcess;
   }
 
-  const nextProcess = runVideoEditorJob(jobId).finally(() => {
+  const nextProcess = runVideoEditorJob(jobId, mode).finally(() => {
     activeProcesses.delete(jobId);
   });
 
@@ -83,7 +88,7 @@ export function processVideoEditorJob(jobId: string) {
   return nextProcess;
 }
 
-async function runVideoEditorJob(jobId: string) {
+async function runVideoEditorJob(jobId: string, mode: VideoEditorProcessMode) {
   const job = await readJob(jobId);
 
   if (!job) {
@@ -376,6 +381,30 @@ async function runVideoEditorJob(jobId: string) {
 
     await extractAudioWav(fillerSourceAbsolutePath, audioAbsolutePath);
     await tryTranscription(job.id, audioAbsolutePath, "final");
+
+    if (mode === "prepare_copy") {
+      const preparedJob = await readJob(job.id);
+
+      if (!preparedJob) {
+        throw new Error("El job desapareció antes de preparar el copy.");
+      }
+
+      await prepareCopyPack(preparedJob);
+
+      return await updateJob(job.id, (currentJob) =>
+        appendJobLog(
+          {
+            ...currentJob,
+            status: "awaiting_copy_review",
+            progress: 68,
+            currentStep: "reviewing_copy",
+            currentStepLabel: "Copy listo para revisar",
+            errorMessage: undefined,
+          },
+          "Copy pack preparado. Esperando revisión antes del render final.",
+        ),
+      );
+    }
 
     const formatProfile = getOutputFormatProfile(config.outputFormat);
     const qualityProfile = getExportQualityProfile(config.exportQuality);

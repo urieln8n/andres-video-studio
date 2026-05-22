@@ -153,7 +153,10 @@ export function ProcessingJobPanel({ jobId }: { jobId: string }) {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,1.05fr)]">
         <ProcessingTimeline job={job} />
-        <LiveLogsPanel active={job?.status === "processing"} logs={job?.logs ?? []} />
+        <LiveLogsPanel
+          active={job?.status === "processing" || job?.status === "rendering_final"}
+          logs={job?.logs ?? []}
+        />
       </div>
 
       {job?.status === "failed" && job.errorMessage ? (
@@ -175,6 +178,15 @@ export function ProcessingJobPanel({ jobId }: { jobId: string }) {
       ) : null}
 
       <div className="flex flex-col justify-end gap-3 sm:flex-row">
+        {job?.status === "awaiting_copy_review" ||
+        job?.status === "copy_approved" ? (
+          <Link
+            href={`/video-editor/copy?jobId=${encodeURIComponent(jobId)}`}
+            className="inline-flex min-h-14 w-full items-center justify-center rounded-[8px] border border-[#ecd3a3]/30 bg-[linear-gradient(135deg,#ead0a0,#b8853b)] px-7 text-base font-semibold text-zinc-950 shadow-[0_22px_80px_-28px_rgba(214,178,110,0.95)] transition hover:brightness-110 sm:w-auto"
+          >
+            Revisar copy
+          </Link>
+        ) : null}
         {job?.status === "completed" ? (
           <Link
             href={`/video-editor/result?jobId=${encodeURIComponent(jobId)}`}

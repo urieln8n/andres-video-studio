@@ -32,6 +32,8 @@ export function VideoJobCard({
     : "Personalizado";
   const canProcess = job.status === "uploaded" || job.status === "failed";
   const canDownload = job.status === "completed" && job.hasFinalVideo;
+  const canReview =
+    job.status === "awaiting_copy_review" || job.status === "copy_approved";
 
   return (
     <article className="flex min-h-[31rem] flex-col rounded-[8px] border border-white/10 bg-white/[0.065] p-5 shadow-[0_32px_110px_-74px_rgba(0,0,0,1)] backdrop-blur-xl">
@@ -71,12 +73,14 @@ export function VideoJobCard({
       <div className="mt-4 rounded-[8px] border border-white/[0.08] bg-black/20 p-3 text-sm text-zinc-300">
         {job.hasFinalVideo
           ? "Vídeo final disponible para preview y descarga."
-          : job.status === "processing"
+          : job.status === "processing" || job.status === "rendering_final"
             ? `Procesando: ${job.progress}% · ${job.currentStepLabel || job.currentStep}`
+            : canReview
+              ? "El copy espera revisión antes del render final."
             : job.status === "failed" && job.errorMessage
               ? job.errorMessage
               : "Todavía no hay un MP4 final disponible."}
-        {job.status === "processing" ? (
+        {job.status === "processing" || job.status === "rendering_final" ? (
           <div className="mt-2 h-1.5 overflow-hidden rounded-full border border-white/10 bg-black/35">
             <div
               className="h-full rounded-full bg-[linear-gradient(90deg,#8f6736,#efd8ad,#c68a3d)] transition-all duration-500"
@@ -93,7 +97,7 @@ export function VideoJobCard({
         >
           Ver resultado
         </Link>
-        {job.status === "processing" ? (
+        {job.status === "processing" || job.status === "rendering_final" ? (
           <Link
             href={`/video-editor/processing?jobId=${encodeURIComponent(job.id)}`}
             className="inline-flex min-h-11 items-center justify-center rounded-[8px] border border-white/12 bg-white/[0.08] px-3 text-sm font-semibold text-white transition hover:bg-white/[0.13]"
@@ -107,6 +111,14 @@ export function VideoJobCard({
             className="inline-flex min-h-11 items-center justify-center rounded-[8px] border border-white/12 bg-white/[0.08] px-3 text-sm font-semibold text-white transition hover:bg-white/[0.13]"
           >
             {job.status === "failed" ? "Reintentar" : "Procesar"}
+          </Link>
+        ) : null}
+        {canReview ? (
+          <Link
+            href={`/video-editor/copy?jobId=${encodeURIComponent(job.id)}`}
+            className="inline-flex min-h-11 items-center justify-center rounded-[8px] border border-white/12 bg-white/[0.08] px-3 text-sm font-semibold text-white transition hover:bg-white/[0.13]"
+          >
+            Revisar copy
           </Link>
         ) : null}
         {canDownload ? (
@@ -144,6 +156,9 @@ function StatusBadge({ status }: { status: VideoEditorLibraryJob["status"] }) {
     completed: "border-emerald-200/20 bg-emerald-200/10 text-emerald-100",
     failed: "border-rose-200/20 bg-rose-200/10 text-rose-100",
     processing: "border-[#efd8ad]/25 bg-[#d6b26e]/12 text-[#efd8ad]",
+    rendering_final: "border-[#efd8ad]/25 bg-[#d6b26e]/12 text-[#efd8ad]",
+    awaiting_copy_review: "border-fuchsia-200/20 bg-fuchsia-200/10 text-fuchsia-100",
+    copy_approved: "border-cyan-200/20 bg-cyan-200/10 text-cyan-100",
     uploaded: "border-sky-200/20 bg-sky-200/10 text-sky-100",
   };
 

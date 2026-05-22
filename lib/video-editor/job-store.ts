@@ -163,6 +163,14 @@ export function getFillerPlanRelativePath(jobId: string) {
   return path.posix.join("storage", "temp", `${jobId}_filler_plan.json`);
 }
 
+export function getCopyPackAbsolutePath(jobId: string) {
+  return path.join(tempRoot, `${jobId}_copy_pack.json`);
+}
+
+export function getCopyPackRelativePath(jobId: string) {
+  return path.posix.join("storage", "temp", `${jobId}_copy_pack.json`);
+}
+
 export function getProcessingLockAbsolutePath(jobId: string) {
   return path.join(tempRoot, `${jobId}.lock`);
 }
@@ -215,6 +223,14 @@ export function createUploadedJob(fileName: string, configValue?: unknown) {
     templateId: config.templateId,
     hookText: config.hookText ?? template.hook,
     ctaText: config.ctaText ?? template.cta,
+    finalHookText: null,
+    finalCtaText: null,
+    generatedTitle: null,
+    generatedDescription: null,
+    generatedHashtags: [],
+    copyPack: null,
+    copyPackPath: null,
+    finalCopy: null,
     config,
     overlayPath: null,
     finalVideoPath: null,

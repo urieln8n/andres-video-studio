@@ -121,7 +121,13 @@ function matchesFilter(job: VideoEditorLibraryJob, filter: LibraryFilter) {
   }
 
   if (filter === "pending") {
-    return job.status === "uploaded" || job.status === "processing";
+    return (
+      job.status === "uploaded" ||
+      job.status === "processing" ||
+      job.status === "rendering_final" ||
+      job.status === "awaiting_copy_review" ||
+      job.status === "copy_approved"
+    );
   }
 
   return job.status === filter;

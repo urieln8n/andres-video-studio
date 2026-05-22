@@ -152,8 +152,36 @@ export default async function VideoResultPage({
     },
     { label: "Plantilla usada", value: template.name },
     { label: "Estilo de subtítulos", value: config.subtitleStyle },
-    { label: "Hook usado", value: job.hookText || "Pendiente" },
-    { label: "CTA usado", value: job.ctaText || "Pendiente" },
+    {
+      label: "Hook final usado",
+      value: job.finalCopy?.selectedHook || job.finalHookText || job.hookText || "Pendiente",
+    },
+    {
+      label: "CTA final usado",
+      value: job.finalCopy?.selectedCta || job.finalCtaText || job.ctaText || "Pendiente",
+    },
+    {
+      label: "Titulo final",
+      value: job.finalCopy?.title || job.generatedTitle || "Pendiente",
+    },
+    {
+      label: "Descripcion final",
+      value: job.finalCopy?.description || job.generatedDescription || "Sin descripcion",
+    },
+    {
+      label: "Hashtags finales",
+      value:
+        job.finalCopy?.hashtags.join(" ") ||
+        job.generatedHashtags?.join(" ") ||
+        "Sin hashtags",
+    },
+    {
+      label: "Origen del copy",
+      value:
+        job.finalCopy?.source === "edited"
+          ? "Copy editado manualmente"
+          : "Copy automatico",
+    },
     {
       label: "Recorte de silencios",
       value: formatToggle(config.trimSilences),
