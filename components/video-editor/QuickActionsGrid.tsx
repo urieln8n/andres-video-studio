@@ -38,6 +38,11 @@ const actions = [
     label: "Demo comercial",
     detail: "Landing de presentación del estudio.",
   },
+  {
+    href: "/video-editor/pitch",
+    label: "Pitch comercial",
+    detail: "Presentación de ventas para mostrar a clientes.",
+  },
 ] as const;
 
 export function QuickActionsGrid() {

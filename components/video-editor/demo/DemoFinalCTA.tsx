@@ -55,6 +55,12 @@ export function DemoFinalCTA() {
           >
             Dashboard agencia
           </Link>
+          <Link
+            href="/video-editor/pitch"
+            className="inline-flex items-center gap-2 rounded-2xl border border-[#efd8ad]/25 bg-[#d6b26e]/10 px-10 py-5 text-lg font-semibold text-[#efd8ad] transition-all hover:bg-[#d6b26e]/18"
+          >
+            Ver pitch comercial
+          </Link>
         </div>
 
         <p className="text-sm text-zinc-700">
