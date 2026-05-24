@@ -7,6 +7,7 @@ import { ServicePackagesSection } from "@/components/video-editor/pitch/ServiceP
 import { WorkflowSection } from "@/components/video-editor/pitch/WorkflowSection";
 import { AgencyPitchSection } from "@/components/video-editor/pitch/AgencyPitchSection";
 import { PitchFAQ } from "@/components/video-editor/pitch/PitchFAQ";
+import { BetaAccessSection } from "@/components/video-editor/pitch/BetaAccessSection";
 import { PitchFinalCTA } from "@/components/video-editor/pitch/PitchFinalCTA";
 
 export const metadata = {
@@ -53,6 +54,7 @@ export default function PitchPage() {
       <WorkflowSection />
       <AgencyPitchSection />
       <PitchFAQ />
+      <BetaAccessSection />
       <PitchFinalCTA />
     </main>
   );
