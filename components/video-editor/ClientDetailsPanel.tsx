@@ -30,7 +30,7 @@ export function ClientDetailsPanel({ client }: { client: VideoEditorClient }) {
         <Detail label="Notas" value={client.notes || "Sin notas"} />
       </dl>
       <div className="mt-6 flex flex-wrap gap-3">
-        <Link className={goldLink} href={`/video-editor?clientId=${encodeURIComponent(client.id)}`}>
+        <Link className={goldLink} href={`/video-editor/create?clientId=${encodeURIComponent(client.id)}`}>
           Crear vídeo para este cliente
         </Link>
         <Link className={softLink} href={`/video-editor/clients/${encodeURIComponent(client.id)}/edit`}>

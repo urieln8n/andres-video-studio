@@ -28,7 +28,7 @@ export function BarberiaOSHero() {
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Link
             className="inline-flex min-h-14 items-center justify-center rounded-[8px] border border-[#efd8ad]/35 bg-[linear-gradient(135deg,#efd8ad,#ba843d)] px-6 text-base font-semibold text-zinc-950 shadow-[0_22px_80px_-36px_rgba(214,178,110,0.95)] transition hover:brightness-110"
-            href="/video-editor?mode=barberiaos&commercialPresetId=barberia_huecos_libres&platformPreset=instagram_reels&templateId=barberia"
+            href="/video-editor/create?mode=barberiaos&commercialPresetId=barberia_huecos_libres&platformPreset=instagram_reels&templateId=barberia"
           >
             Crear vídeo para mi barbería
           </Link>

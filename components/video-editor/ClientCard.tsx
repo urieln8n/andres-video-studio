@@ -74,7 +74,7 @@ export function ClientCard({
         <Link className={actionStyle} href={`/video-editor/clients/${encodeURIComponent(client.id)}`}>
           Ver cliente
         </Link>
-        <Link className={actionStyle} href={`/video-editor?clientId=${encodeURIComponent(client.id)}`}>
+        <Link className={actionStyle} href={`/video-editor/create?clientId=${encodeURIComponent(client.id)}`}>
           Nuevo vídeo
         </Link>
         <Link className={secondaryStyle} href={`/video-editor/clients/${encodeURIComponent(client.id)}/edit`}>

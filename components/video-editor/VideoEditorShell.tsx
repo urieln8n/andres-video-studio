@@ -1,5 +1,15 @@
 import Link from "next/link";
 
+const navItems = [
+  { label: "Dashboard", href: "/video-editor/dashboard" },
+  { label: "Crear vídeo", href: "/video-editor/create" },
+  { label: "Agentes Premium", href: "/video-editor/agents" },
+  { label: "BarberíaOS Studio", href: "/video-editor/barberiaos" },
+  { label: "Biblioteca", href: "/video-editor/library" },
+  { label: "Clientes", href: "/video-editor/clients" },
+  { label: "Sistema", href: "/video-editor/system" },
+];
+
 export function VideoEditorShell({
   children,
 }: Readonly<{
@@ -22,7 +32,7 @@ export function VideoEditorShell({
 
       <div className="flex min-h-screen w-full flex-col">
         <header className="px-5 pt-5 sm:px-8 lg:px-10">
-          <div className="mx-auto flex w-full max-w-7xl items-center justify-between rounded-[8px] border border-white/10 bg-white/[0.055] px-4 py-3 shadow-[0_24px_80px_-52px_rgba(0,0,0,0.95)] backdrop-blur-xl sm:px-5">
+          <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 rounded-[8px] border border-white/10 bg-white/[0.055] px-4 py-3 shadow-[0_24px_80px_-52px_rgba(0,0,0,0.95)] backdrop-blur-xl sm:px-5 lg:flex-row lg:items-center lg:justify-between">
             <Link
               href="/video-editor"
               className="flex min-w-0 items-center gap-3 text-white"
@@ -47,25 +57,19 @@ export function VideoEditorShell({
               </span>
             </Link>
 
-            <nav className="flex flex-wrap items-center justify-end gap-2">
-              <Link
-                href="/video-editor/dashboard"
-                className="inline-flex min-h-10 items-center rounded-[8px] border border-[#efd8ad]/20 bg-[#d6b26e]/10 px-3 text-xs font-semibold text-[#efd8ad] transition hover:border-[#efd8ad]/35 hover:bg-[#d6b26e]/18 sm:px-4 sm:text-sm"
-              >
-                Dashboard
-              </Link>
-              <Link
-                href="/video-editor/clients"
-                className="inline-flex min-h-10 items-center rounded-[8px] border border-white/10 bg-black/20 px-3 text-xs font-semibold text-zinc-200 transition hover:border-[#efd8ad]/30 hover:text-[#efd8ad] sm:px-4 sm:text-sm"
-              >
-                Clientes
-              </Link>
-              <Link
-                href="/video-editor/library"
-                className="inline-flex min-h-10 items-center rounded-[8px] border border-white/10 bg-black/20 px-3 text-xs font-semibold text-zinc-200 transition hover:border-[#efd8ad]/30 hover:text-[#efd8ad] sm:px-4 sm:text-sm"
-              >
-                Biblioteca
-              </Link>
+            <nav
+              aria-label="Navegación principal"
+              className="flex gap-2 overflow-x-auto pb-1 lg:flex-wrap lg:justify-end lg:overflow-visible lg:pb-0"
+            >
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="inline-flex min-h-10 shrink-0 items-center rounded-[8px] border border-white/10 bg-black/20 px-3 text-xs font-semibold text-zinc-200 transition hover:border-[#efd8ad]/30 hover:bg-[#d6b26e]/10 hover:text-[#efd8ad] sm:px-4 sm:text-sm"
+                >
+                  {item.label}
+                </Link>
+              ))}
             </nav>
           </div>
         </header>

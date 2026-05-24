@@ -146,7 +146,7 @@ export function getBarberiaOSEditorHref(
     params.set("subtitleStyle", subtitleStyle);
   }
 
-  return `/video-editor?${params.toString()}`;
+  return `/video-editor/create?${params.toString()}`;
 }
 
 function Field({
