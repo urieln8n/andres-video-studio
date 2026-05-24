@@ -52,18 +52,18 @@ export default async function CreateVideoPage({
           ) : null}
           <p className="mb-4 text-sm font-medium uppercase text-[#d6b26e]">
             {isBarberiaOS
-              ? "Content Studio para barberías"
-              : "Edición automática con IA"}
+              ? "Agente BarberíaOS"
+              : "Flujo de producción premium"}
           </p>
           <h1 className="max-w-4xl text-5xl font-semibold leading-none text-white sm:text-6xl lg:text-8xl">
             {isBarberiaOS
-              ? "Prepara tu reel para vender reservas."
-              : "Edita tu vídeo en automático."}
+              ? "Crea un reel que lleve clientes a reservar."
+              : "Convierte tu vídeo en una pieza lista para publicar."}
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-300 sm:text-xl">
             {isBarberiaOS
-              ? "Sube un vídeo de tu corte, local o promoción y conserva todo el flujo de Andrés Video Studio."
-              : "Subtítulos, recortes, motion graphics y render final sin tocar nada."}
+              ? "Sube un vídeo de tu corte, local o promoción y prepara CTA, QR, copy y formato social."
+              : "Sube el bruto, elige preset o agente, revisa el copy y recibe vídeo final con pack de publicación."}
           </p>
         </div>
 

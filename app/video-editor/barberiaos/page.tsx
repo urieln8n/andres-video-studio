@@ -92,11 +92,16 @@ export default function BarberiaOSContentStudioPage() {
         <section className="flex flex-col gap-5">
           <div className="max-w-3xl">
             <p className="text-xs font-medium uppercase text-[#d6b26e]">
-              Plantillas listas
+              Plantillas comerciales listas
             </p>
             <h2 className="mt-3 text-3xl font-semibold text-white sm:text-5xl">
-              Reels para vender reservas
+              Empieza por el caso que más mueve agenda.
             </h2>
+            <p className="mt-4 text-base leading-7 text-zinc-300">
+              Huecos libres, QR de reservas, antes/después, promociones y
+              reseñas preparados para Instagram Reels, WhatsApp y Google
+              Business.
+            </p>
           </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {useCases.map((useCase) => (

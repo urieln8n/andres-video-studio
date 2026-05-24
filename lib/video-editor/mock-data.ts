@@ -30,23 +30,23 @@ export type VideoDetail = {
 export const videoFeatures: VideoFeature[] = [
   {
     number: "01",
-    title: "Transcribe",
-    description: "audio a texto con precisión",
+    title: "Sube tu vídeo",
+    description: "material bruto, demo, corte, promoción o pieza para cliente",
   },
   {
     number: "02",
-    title: "Recorta",
-    description: "silencios, pausas y fillers",
+    title: "Elige agente o preset",
+    description: "Viral Clips, BarberíaOS, limpieza, marca local o pack",
   },
   {
     number: "03",
-    title: "Anima",
-    description: "subtítulos y motion graphics",
+    title: "Aprueba copy",
+    description: "hook, CTA, captions y textos de publicación",
   },
   {
     number: "04",
-    title: "Renderiza",
-    description: "exportación lista para redes",
+    title: "Recibe vídeo + pack",
+    description: "MP4 final y entregables listos para publicar",
   },
 ];
 
