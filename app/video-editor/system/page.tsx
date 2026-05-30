@@ -159,6 +159,12 @@ export default async function SystemPage() {
         >
           Demo comercial →
         </Link>
+        <Link
+          href="/video-editor/pitch"
+          className="inline-flex min-h-10 items-center rounded-[8px] border border-[#efd8ad]/20 bg-[#d6b26e]/8 px-4 text-sm font-semibold text-[#efd8ad] hover:bg-[#d6b26e]/15"
+        >
+          Pitch comercial →
+        </Link>
         <a
           href="/api/video-editor/health"
           target="_blank"

@@ -32,7 +32,7 @@ export default function DemoPage() {
               "BarberíaOS como caso vertical estrella",
             ].map((item) => (
               <div
-                className="rounded-[8px] border border-white/10 bg-white/[0.055] px-4 py-4 text-sm font-semibold text-zinc-200"
+                className="rounded-lg border border-white/10 bg-white/5.5 px-4 py-4 text-sm font-semibold text-zinc-200"
                 key={item}
               >
                 {item}
@@ -42,16 +42,22 @@ export default function DemoPage() {
         </div>
         <div className="mx-auto mt-8 flex max-w-6xl flex-col gap-3 sm:flex-row">
           <Link
-            className="inline-flex min-h-12 items-center justify-center rounded-[8px] bg-[#d6b26e] px-5 text-sm font-semibold text-zinc-950"
+            className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[#d6b26e] px-5 text-sm font-semibold text-zinc-950"
             href="/video-editor/agents"
           >
             Ver agentes premium
           </Link>
           <Link
-            className="inline-flex min-h-12 items-center justify-center rounded-[8px] border border-white/12 bg-white/[0.05] px-5 text-sm font-semibold text-white"
+            className="inline-flex min-h-12 items-center justify-center rounded-lg border border-white/12 bg-white/5 px-5 text-sm font-semibold text-white"
             href="/video-editor/barberiaos"
           >
             Ver BarberíaOS
+          </Link>
+          <Link
+            className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[#efd8ad]/25 bg-[#d6b26e]/10 px-5 text-sm font-semibold text-[#efd8ad]"
+            href="/video-editor/pitch"
+          >
+            Ver pitch comercial
           </Link>
         </div>
       </section>

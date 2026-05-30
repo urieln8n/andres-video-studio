@@ -97,10 +97,9 @@ export function FeatureGrid() {
             </div>
           ))}
 
-          {/* Coming soon placeholder */}
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 p-6 text-center">
-            <div className="mb-2 text-2xl text-zinc-700">+</div>
-            <p className="text-sm text-zinc-700">Más en Fase 3E</p>
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#efd8ad]/15 bg-[#d6b26e]/3 p-6 text-center">
+            <div className="mb-2 text-2xl text-[#d6b26e]/40">✦</div>
+            <p className="text-sm text-zinc-600">Más agentes en desarrollo</p>
           </div>
         </div>
       </div>

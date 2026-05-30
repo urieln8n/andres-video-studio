@@ -44,7 +44,7 @@ export function BetaAccessSection() {
               ].map((plan) => (
                 <div
                   key={plan.label}
-                  className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-4"
+                  className="rounded-xl border border-white/10 bg-white/4 px-4 py-4"
                 >
                   <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                     {plan.label}
@@ -64,7 +64,7 @@ export function BetaAccessSection() {
                 <span className="transition-transform group-hover:translate-x-1">→</span>
               </a>
               <a
-                href="https://wa.me/34600000000?text=Hola%2C%20me%20interesa%20ver%20una%20demo%20de%20Andr%C3%A9s%20Video%20Studio"
+                href="mailto:fa.andres18@hotmail.com?subject=Demo%20Andr%C3%A9s%20Video%20Studio&body=Hola%2C%20me%20interesa%20ver%20una%20demo%20del%20sistema."
                 className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/8 px-8 py-4 text-base font-semibold text-white transition-all hover:bg-white/12"
                 rel="noopener noreferrer"
                 target="_blank"
